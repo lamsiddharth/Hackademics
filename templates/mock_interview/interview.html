@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock Interview — Hackedemics</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #7c6af7;
+    --accent-dim: #3d3478;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --text: #e2e2f0;
+    --muted: #6b6b8a;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,106,247,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 780px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .status-pill.connected .status-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-pill.connected { color: var(--green); border-color: rgba(74,222,128,0.2); }
+  .status-pill.error .status-dot { background: var(--red); }
+  .status-pill.error { color: var(--red); border-color: rgba(248,113,113,0.2); }
+
+  /* ── Setup card ── */
+  #setup-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+  }
+
+  .panel-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .panel-sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 36px;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+  }
+
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .btn-start {
+    width: 100%;
+    margin-top: 12px;
+    padding: 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-start:hover { background: #9585f9; transform: translateY(-1px); }
+  .btn-start:active { transform: translateY(0); }
+  .btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── Interview panel ── */
+  #interview-panel { display: none; }
+
+  .interview-grid {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 16px;
+    min-height: 70vh;
+  }
+
+  /* Visualizer */
+  .viz-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .viz-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .orb-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .orb {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #9585f9, var(--accent-dim));
+    box-shadow: 0 0 30px rgba(124,106,247,0.3);
+    transition: all 0.15s;
+    position: relative;
+    z-index: 1;
+  }
+
+  .orb.listening {
+    animation: pulse-orb 1.2s ease-in-out infinite;
+    box-shadow: 0 0 50px rgba(124,106,247,0.6);
+  }
+
+  .orb.speaking {
+    background: radial-gradient(circle at 35% 35%, #6ee7b7, #059669);
+    box-shadow: 0 0 50px rgba(74,222,128,0.5);
+    animation: pulse-orb 0.8s ease-in-out infinite;
+  }
+
+  .orb.waiting {
+    opacity: 0.4;
+    animation: none;
+  }
+
+  @keyframes pulse-orb {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+
+  .orb-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(124,106,247,0.2);
+    animation: ring-expand 2s ease-out infinite;
+  }
+
+  .orb-ring:nth-child(2) { animation-delay: 0.7s; }
+
+  @keyframes ring-expand {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+
+  .orb-state-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* Transcript feed */
+  .transcript-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    overflow-y: auto;
+    max-height: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+
+  .transcript-card:empty::after {
+    content: 'Conversation will appear here...';
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin: auto;
+    display: block;
+    padding: 40px 0;
+  }
+
+  .turn {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: fade-up 0.3s ease;
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .turn-role {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .turn.user .turn-role { color: var(--accent); }
+  .turn.assistant .turn-role { color: var(--green); }
+
+  .turn-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--bg);
+    border-left: 2px solid transparent;
+  }
+
+  .turn.user .turn-content { border-left-color: var(--accent); }
+  .turn.assistant .turn-content { border-left-color: var(--green); }
+
+  /* Live caption bar */
+  .caption-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .caption-bar.active { color: var(--text); border-color: rgba(124,106,247,0.3); }
+
+  .caption-cursor {
+    display: inline-block;
+    width: 2px; height: 14px;
+    background: var(--accent);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn-mic {
+    flex: 1;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-mic:hover { background: rgba(124,106,247,0.1); }
+  .btn-mic.recording {
+    background: rgba(248,113,113,0.1);
+    border-color: var(--red);
+    color: var(--red);
+    animation: border-pulse 1.5s ease-in-out infinite;
+  }
+
+  .btn-mic:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  @keyframes border-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); }
+    50% { box-shadow: 0 0 0 4px rgba(248,113,113,0.15); }
+  }
+
+  .btn-end {
+    padding: 16px 24px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-end:hover { border-color: var(--red); color: var(--red); background: rgba(248,113,113,0.05); }
+
+  /* Mic icon */
+  .mic-icon { font-size: 16px; }
+
+  /* ── Feedback panel ── */
+  #feedback-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+  }
+
+  .feedback-title {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+
+  .feedback-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  .feedback-body {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #c8c8e0;
+    white-space: pre-wrap;
+  }
+
+  .btn-restart {
+    margin-top: 32px;
+    padding: 14px 28px;
+    border-radius: 10px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-restart:hover { background: rgba(124,106,247,0.1); }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 32px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--red);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">Hackedemics // Interview</div>
+    <div class="status-pill" id="status-pill">
+      <div class="status-dot"></div>
+      <span id="status-text">disconnected</span>
+    </div>
+  </header>
+
+  <!-- ── Setup ── -->
+  <div id="setup-panel">
+    <div class="panel-title">Mock Interview</div>
+    <div class="panel-sub">// configure your session parameters</div>
+
+    <div class="field">
+      <label>Job Role</label>
+      <input type="text" id="job-role" value="Backend Engineer" placeholder="e.g. Frontend Engineer, ML Engineer">
+    </div>
+
+    <div class="field">
+      <label>Difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy — conceptual, broad questions</option>
+        <option value="medium" selected>Medium — standard interview depth</option>
+        <option value="hard">Hard — system design + deep dives</option>
+      </select>
+    </div>
+
+    <button class="btn-start" id="btn-start" onclick="startSession()">
+      Start Interview →
+    </button>
+  </div>
+
+  <!-- ── Interview ── -->
+  <div id="interview-panel">
+    <div class="interview-grid">
+
+      <div class="viz-card">
+        <div class="viz-label" id="viz-label">initializing</div>
+        <div class="orb-wrapper">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb waiting" id="orb"></div>
+        </div>
+        <div class="orb-state-text" id="orb-state">connecting to pipeline...</div>
+      </div>
+
+      <div class="transcript-card" id="transcript-feed"></div>
+
+      <div class="caption-bar" id="caption-bar">
+        waiting for audio...
+      </div>
+
+      <div class="controls">
+        <button class="btn-mic" id="btn-mic" disabled onclick="toggleMic()">
+          <span class="mic-icon">🎙</span>
+          <span id="btn-mic-text">Hold to Speak</span>
+        </button>
+        <button class="btn-end" onclick="endSession()">End Session</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Feedback ── -->
+  <div id="feedback-panel">
+    <div class="feedback-title">Interview Complete</div>
+    <div class="feedback-meta" id="feedback-meta"></div>
+    <div class="feedback-body" id="feedback-body">Loading feedback...</div>
+    <button class="btn-restart" onclick="location.reload()">Start New Session</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- AudioWorklet processor — inline as blob URL -->
+<script id="worklet-src" type="text/worklet">
+class PCMProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._active = true;
+    this.port.onmessage = (e) => {
+      if (e.data === 'stop') this._active = false;
+    };
+  }
+
+  process(inputs) {
+    if (!this._active) return false;
+    const input = inputs[0];
+    if (!input || !input[0]) return true;
+
+    const float32 = input[0];
+    // downsample 44100 → 16000 (ratio ≈ 2.75625)
+    const ratio    = sampleRate / 16000;
+    const outLen   = Math.floor(float32.length / ratio);
+    const int16    = new Int16Array(outLen);
+
+    for (let i = 0; i < outLen; i++) {
+      const srcIdx = Math.floor(i * ratio);
+      const sample = Math.max(-1, Math.min(1, float32[srcIdx]));
+      int16[i] = sample < 0 ? sample * 32768 : sample * 32767;
+    }
+
+    this.port.postMessage(int16.buffer, [int16.buffer]);
+    return true;
+  }
+}
+registerProcessor('pcm-processor', PCMProcessor);
+</script>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────
+let ws            = null;
+let sessionId     = null;
+let audioCtx      = null;
+let workletNode   = null;
+let micStream     = null;
+let isRecording   = false;
+let canRecord     = false;   // true only when interviewer finished speaking
+let audioQueue    = [];      // incoming PCM chunks from Kokoro
+let isPlaying     = false;
+
+// ─── Django CSRF ──────────────────────────────────────────────────────────
+function getCookie(name) {
+  const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return v ? v.pop() : '';
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── Status pill ──────────────────────────────────────────────────────────
+function setStatus(state, label) {
+  const pill = document.getElementById('status-pill');
+  const text = document.getElementById('status-text');
+  pill.className = 'status-pill ' + state;
+  text.textContent = label;
+}
+
+// ─── Orb state ────────────────────────────────────────────────────────────
+function setOrb(state, label, sublabel) {
+  const orb   = document.getElementById('orb');
+  const vizL  = document.getElementById('viz-label');
+  const orbS  = document.getElementById('orb-state');
+  orb.className = 'orb ' + state;
+  if (label)   vizL.textContent = label;
+  if (sublabel) orbS.textContent = sublabel;
+}
+
+// ─── Transcript feed ──────────────────────────────────────────────────────
+function addTurn(role, content) {
+  const feed = document.getElementById('transcript-feed');
+  const div  = document.createElement('div');
+  div.className = 'turn ' + role;
+  div.innerHTML = `
+    <div class="turn-role">${role === 'user' ? '// you' : '// interviewer'}</div>
+    <div class="turn-content">${content}</div>
+  `;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function setCaption(text, active) {
+  const bar = document.getElementById('caption-bar');
+  bar.className = 'caption-bar' + (active ? ' active' : '');
+  bar.innerHTML = active
+    ? text + '<span class="caption-cursor"></span>'
+    : text;
+}
+
+// ─── Step 1: Django → get session_id + ws_url ────────────────────────────
+async function startSession() {
+  const btn      = document.getElementById('btn-start');
+  const jobRole  = document.getElementById('job-role').value.trim() || 'Software Engineer';
+  const diff     = document.getElementById('difficulty').value;
+
+  btn.disabled   = true;
+  btn.textContent = 'Starting...';
+
+  try {
+    const resp = await fetch('/mock-interview/start/', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'X-CSRFToken':   getCookie('csrftoken'),
+      },
+      body: JSON.stringify({ job_role: jobRole, difficulty: diff }),
+    });
+
+    if (!resp.ok) throw new Error(`Django returned ${resp.status}`);
+
+    const data = await resp.json();
+    sessionId  = data.session_id;
+
+    document.getElementById('setup-panel').style.display     = 'none';
+    document.getElementById('interview-panel').style.display = 'block';
+
+    connectWebSocket(data.ws_url);
+
+  } catch (err) {
+    showToast('Failed to start session: ' + err.message);
+    btn.disabled    = false;
+    btn.textContent = 'Start Interview →';
+  }
+}
+
+// ─── Step 2: FastAPI WebSocket ────────────────────────────────────────────
+function connectWebSocket(wsUrl) {
+  setOrb('waiting', 'connecting', 'opening pipeline...');
+  setStatus('', 'connecting...');
+
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+  setStatus('connected', 'connected');
+  setOrb('speaking', 'interviewer', 'asking first question...');
+  setInterval(() => { if (ws && ws.readyState === 1) ws.send('PING'); }, 20000);
+
+  // Fallback — unlock mic after 30s if END_OF_RESPONSE never arrives
+  setTimeout(() => {
+    if (!canRecord && !isRecording) {
+      console.warn('END_OF_RESPONSE timeout — unlocking mic manually');
+      canRecord = true;
+      document.getElementById('btn-mic').disabled = false;
+      setOrb('waiting', 'your turn', 'click to speak');
+      setCaption('ready for your answer', false);
+      }
+    }, 30000);
+  };
+
+  ws.onmessage = (event) => {
+    // Binary = PCM audio from Kokoro
+    if (event.data instanceof ArrayBuffer) {
+      audioQueue.push(event.data);
+      if (!isPlaying) playNextChunk();
+      return;
+    }
+
+    const msg = event.data;
+
+    if (msg === 'PONG') return;
+
+    if (msg === 'END_OF_RESPONSE') {
+      // Interviewer finished speaking — enable mic
+      canRecord = true;
+      document.getElementById('btn-mic').disabled = false;
+      setOrb('waiting', 'your turn', 'press and hold to speak');
+      setCaption('press and hold the mic button to answer', false);
+      return;
+    }
+
+    if (msg === 'SESSION_END') {
+      setOrb('waiting', 'complete', 'interview finished');
+      setStatus('', 'session ended');
+      pollForFeedback();
+      return;
+    }
+
+    if (msg.startsWith('TRANSCRIPT:')) {
+      const transcript = msg.slice(11);
+      setCaption(transcript, true);
+      // Add to feed when we get the final transcript
+      addTurn('user', transcript);
+      return;
+    }
+    
+    if (msg.startsWith('ASSISTANT:')) {
+      addTurn('assistant', msg.slice(10));
+      return;
+    }
+  };
+
+  ws.onerror = () => {
+    setStatus('error', 'error');
+    showToast('WebSocket error — check FastAPI server');
+  };
+
+  ws.onclose = () => {
+    setStatus('error', 'disconnected');
+    canRecord = false;
+    document.getElementById('btn-mic').disabled = true;
+  };
+}
+
+// ─── Audio playback (PCM-16, 24000 Hz) ───────────────────────────────────
+async function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new AudioContext({ sampleRate: 24000 });
+  }
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+}
+
+async function playNextChunk() {
+  if (audioQueue.length === 0) {
+    isPlaying = false;
+    return;
+  }
+
+  isPlaying = true;
+  setOrb('speaking', 'interviewer', 'speaking...');
+  setCaption('interviewer is speaking...', false);
+
+  await ensureAudioCtx();
+
+  const raw    = audioQueue.shift();
+  const int16  = new Int16Array(raw);
+  const float32 = new Float32Array(int16.length);
+
+  for (let i = 0; i < int16.length; i++) {
+    float32[i] = int16[i] / 32768.0;
+  }
+
+  const buffer = audioCtx.createBuffer(1, float32.length, 24000);
+  buffer.copyToChannel(float32, 0);
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioCtx.destination);
+  source.onended = playNextChunk;
+  source.start();
+}
+
+// ─── Mic recording via AudioWorklet ──────────────────────────────────────
+async function initWorklet() {
+  if (workletNode) return;
+
+  await ensureAudioCtx();
+
+  // Inline as plain string — avoids blob URL issues in Edge/Chromium on Linux
+  const processorCode = `
+    class PCMProcessor extends AudioWorkletProcessor {
+      constructor() {
+        super();
+        this._active = true;
+        this.port.onmessage = (e) => {
+          if (e.data === 'stop') this._active = false;
+        };
+      }
+      process(inputs) {
+        if (!this._active) return false;
+        const input = inputs[0];
+        if (!input || !input[0]) return true;
+        const float32 = input[0];
+        const ratio   = sampleRate / 16000;
+        const outLen  = Math.floor(float32.length / ratio);
+        const int16   = new Int16Array(outLen);
+        for (let i = 0; i < outLen; i++) {
+          const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)]));
+          int16[i] = s < 0 ? s * 32768 : s * 32767;
+        }
+        this.port.postMessage(int16.buffer, [int16.buffer]);
+        return true;
+      }
+    }
+    registerProcessor('pcm-processor', PCMProcessor);
+  `;
+
+  const blob = new Blob([processorCode], { type: 'application/javascript' });
+  const url  = URL.createObjectURL(blob);
+
+  try {
+    await audioCtx.audioWorklet.addModule(url);
+  } catch(e) {
+    console.error('Worklet load failed:', e);
+    throw new Error('AudioWorklet failed to load: ' + e.message);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+
+  micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  const src = audioCtx.createMediaStreamSource(micStream);
+
+  workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+  workletNode.port.onmessage = (e) => {
+    if (ws && ws.readyState === 1 && isRecording) {
+      ws.send(e.data);
+    }
+  };
+
+  src.connect(workletNode);
+}
+
+async function toggleMic() {
+  console.log('toggleMic called', { canRecord, isRecording });
+
+  if (!isRecording) {
+    // Only check canRecord when STARTING a new turn, not when stopping
+    if (!canRecord) {
+      showToast('Wait for interviewer to finish speaking');
+      return;
+    }
+    // Explicitly test mic permission before touching AudioWorklet
+    try {
+      const test = await navigator.mediaDevices.getUserMedia({ audio: true });
+      test.getTracks().forEach(t => t.stop());
+    } catch(e) {
+      showToast('Mic blocked — allow localhost in Edge: edge://settings/content/microphone');
+      return;
+    }
+
+    try {
+      await initWorklet();
+    } catch (err) {
+      showToast('Mic error: ' + err.message);
+      console.error('initWorklet failed:', err);
+      return;
+    }
+
+    isRecording = true;
+    canRecord   = false;
+
+    const btn = document.getElementById('btn-mic');
+    btn.classList.add('recording');
+    document.getElementById('btn-mic-text').textContent = 'Listening... Click to send';
+    setOrb('listening', 'listening', 'speak your answer...');
+    setCaption('listening...', true);
+
+  } else {
+    isRecording = false;
+
+    // Stop the worklet first
+    if (workletNode) {
+      workletNode.port.postMessage('stop');
+      workletNode = null;
+    }
+
+    // Stop mic tracks to release the mic indicator in browser
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+
+    // Tell FastAPI this turn is over — triggers clean STT close
+    if (ws && ws.readyState === 1) {
+      ws.send('STOP_RECORDING');
+    }
+
+    const btn = document.getElementById('btn-mic');
+    btn.classList.remove('recording');
+    btn.disabled = true;
+    document.getElementById('btn-mic-text').textContent = 'Hold to Speak';
+
+    setOrb('speaking', 'processing', 'transcribing...');
+    setCaption('processing your answer...', false);
+  }
+}
+
+// ─── End session ──────────────────────────────────────────────────────────
+function endSession() {
+  if (ws) ws.close();
+  pollForFeedback();
+}
+
+// ─── Poll Django for feedback ─────────────────────────────────────────────
+async function pollForFeedback() {
+  if (!sessionId) return;
+
+  document.getElementById('interview-panel').style.display = 'none';
+  document.getElementById('feedback-panel').style.display  = 'block';
+
+  let attempts = 0;
+  const max    = 20;  // poll up to 20 times (20 seconds)
+
+  const poll = async () => {
+    attempts++;
+    try {
+      const resp = await fetch(`/mock-interview/results/${sessionId}/`);
+      const data = await resp.json();
+
+      if (data.ready) {
+        document.getElementById('feedback-meta').textContent =
+          `${data.job_role}  ·  ${data.difficulty}  ·  ${new Date(data.created_at).toLocaleString()}`;
+        document.getElementById('feedback-body').textContent = data.feedback;
+        return;
+      }
+    } catch (_) {}
+
+    if (attempts < max) setTimeout(poll, 1500);
+    else document.getElementById('feedback-body').textContent =
+      'Feedback is taking longer than expected. Refresh to check again.';
+  };
+
+  setTimeout(poll, 2000);  // initial delay for FastAPI → Django callback
+}
+</script>
+</body>
+</html>
