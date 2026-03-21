@@ -37,6 +37,8 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 JOOBLE_API_KEY = os.getenv('JOOBLE_API_KEY', '')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+DJANGO_INTERNAL_SECRET = os.getenv('DJANGO_INTERNAL_SECRET', 'change-this-to-something-strong')
 
 
 # Application definition
@@ -52,6 +54,7 @@ INSTALLED_APPS = [
     'resume_builder',
     'competency',
     'recommendations',
+    'mock_interview'
 ]
 
 MIDDLEWARE = [
@@ -145,4 +148,4 @@ TEMPLATES[0]['DIRS'] = [os.path.join(BASE_DIR, 'templates')]
 # Auth redirects
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/login/'
