@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto animate-slide-up">
+  <!-- Verdict Banner -->
+  <div class="card-elevated p-8 mb-8 text-center {% if session.hire_decision == 'hire' %}border-l-4 border-l-emerald-500{% elif session.hire_decision == 'no_hire' %}border-l-4 border-l-red-500{% else %}border-l-4 border-l-amber-500{% endif %}">
+    <div class="mb-4">
+      {% if session.hire_decision == 'hire' %}
+        <div class="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 flex items-center justify-center mb-3">
+          <svg class="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-emerald-400">HIRE</h1>
+      {% elif session.hire_decision == 'no_hire' %}
+        <div class="w-16 h-16 mx-auto rounded-full bg-red-500/20 flex items-center justify-center mb-3">
+          <svg class="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-red-400">NO HIRE</h1>
+      {% else %}
+        <div class="w-16 h-16 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center mb-3">
+          <svg class="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-amber-400">MAYBE</h1>
+      {% endif %}
+    </div>
+
+    <!-- Score Ring -->
+    <div class="career-score-ring mx-auto" style="width: 120px; height: 120px; position: relative;">
+      <svg viewBox="0 0 120 120" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-700)" stroke-width="8"/>
+        <circle cx="60" cy="60" r="50" fill="none"
+                stroke="{% if session.overall_score >= 70 %}var(--success){% elif session.overall_score >= 40 %}var(--warning){% else %}var(--danger, #FF4757){% endif %}"
+                stroke-width="8" stroke-linecap="round"
+                stroke-dasharray="314" stroke-dashoffset="314"
+                class="score-circle" data-score="{{ session.overall_score|default:0 }}" data-radius="50"/>
+      </svg>
+      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span class="stat-value" style="font-size: 1.75rem;" data-count-to="{{ session.overall_score|default:0 }}">0</span>
+        <span class="text-surface-500" style="font-size: 0.65rem;">/100</span>
+      </div>
+    </div>
+
+    <p class="text-surface-300 text-sm mt-4 max-w-md mx-auto">{{ summary }}</p>
+    <div class="flex items-center justify-center gap-2 mt-3">
+      <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
+      <span class="badge bg-surface-700 text-surface-300 border border-surface-600">{{ session.category|title }}</span>
+    </div>
+  </div>
+
+  <!-- Per-Question Breakdown -->
+  <h2 class="section-title mb-4">Question Breakdown</h2>
+  <div class="space-y-4 mb-8">
+    {% for q in questions %}
+    <div class="card p-5">
+      <div class="flex items-start justify-between gap-4 mb-3">
+        <div class="flex-1">
+          <p class="text-surface-100 text-sm font-medium mb-1">{{ q.question_text }}</p>
+          <p class="text-surface-400 text-xs">Your answer: {{ q.user_answer|truncatewords:30 }}</p>
+        </div>
+        <!-- Confidence Meter -->
+        <div class="flex-shrink-0 text-center" style="min-width: 60px;">
+          <div style="height: 6px; background: var(--surface-700); border-radius: 3px; overflow: hidden; margin-bottom: 4px;">
+            <div style="height: 100%; width: {% widthratio q.confidence|default:0 1 100 %}%; border-radius: 3px;
+                         background: {% if q.confidence >= 0.7 %}var(--success){% elif q.confidence >= 0.4 %}var(--warning){% else %}var(--danger, #FF4757){% endif %};"></div>
+          </div>
+          <span class="text-xs font-mono text-surface-400">{{ q.score|floatformat:1|default:"0" }}/1</span>
+        </div>
+      </div>
+
+      {% if q.feedback %}
+      <p class="text-sm text-surface-300 mt-2 p-2 rounded" style="background: var(--surface-800);">{{ q.feedback }}</p>
+      {% endif %}
+
+      {% if q.time_taken %}
+      <span class="text-xs text-surface-500 mt-2 inline-block">Time: {{ q.time_taken }}s</span>
+      {% endif %}
+
+      <!-- Model Answer -->
+      {% if q.model_answer %}
+      <details class="mt-3">
+        <summary class="text-sm text-brand-400 cursor-pointer hover:text-brand-300" style="list-style: none;">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+            </svg>
+            See Expert Answer
+          </span>
+        </summary>
+        <div class="mt-2 p-3 rounded-lg" style="background: var(--surface-800);">
+          <p class="text-sm text-surface-300 leading-relaxed">{{ q.model_answer }}</p>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-3 pb-8">
+    <a href="{% url 'interview_report' session.id %}" class="btn-accent text-sm">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+      </svg>
+      Download Report Card
+    </a>
+    <a href="{% url 'interview_prep' %}" class="btn-secondary text-sm">Back to Interview Prep</a>
+    <a href="{% url 'dashboard' %}" class="btn-ghost text-sm">Dashboard</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Animate score circles
+  document.querySelectorAll('.score-circle').forEach(function(circle) {
+    const score = parseFloat(circle.dataset.score || 0);
+    const r = parseFloat(circle.dataset.radius || 50);
+    const circumference = 2 * Math.PI * r;
+    const offset = circumference - (score / 100) * circumference;
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = circumference;
+    setTimeout(function() {
+      circle.style.transition = 'stroke-dashoffset 1s ease';
+      circle.style.strokeDashoffset = offset;
+    }, 300);
+  });
+});
+</script>
+{% endblock %}

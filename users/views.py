@@ -54,7 +54,9 @@ def landing_view(request):
 
 @login_required
 def dashboard_view(request):
-    """Enhanced dashboard with live stats and recent activity."""
+    """Enhanced dashboard with Career Score, AI insights, and smart CTAs."""
+    from .services import calculate_career_score, get_daily_ai_insight, get_next_best_action
+
     profile = None
     profile_completeness = 0
     try:
@@ -82,6 +84,14 @@ def dashboard_view(request):
     if profile and profile.extracted_skills:
         skills_count = len(profile.extracted_skills)
 
+    # Career Score + AI features
+    career = calculate_career_score(request.user)
+    try:
+        daily_insight = get_daily_ai_insight(request.user)
+    except Exception:
+        daily_insight = "Complete more activities to unlock personalized insights."
+    next_action = get_next_best_action(request.user)
+
     context = {
         'profile': profile,
         'profile_completeness': profile_completeness,
@@ -91,6 +101,11 @@ def dashboard_view(request):
         'avg_score': avg_score,
         'recent_activity': recent_activity,
         'skills_count': skills_count,
+        'career_score': career['score'],
+        'career_breakdown': career['breakdown'],
+        'percentile_label': career['percentile_label'],
+        'daily_insight': daily_insight,
+        'next_action': next_action,
     }
     return render(request, 'users/dashboard.html', context)
 

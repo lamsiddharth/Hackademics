@@ -2,13 +2,24 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto animate-slide-up">
-  <!-- Header with progress context -->
+  <!-- Header with progress -->
   <div class="mb-8">
-    <div class="flex items-center gap-2 mb-3">
-      <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
-      <span class="text-surface-500 text-sm">Assessment</span>
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
+        <span class="text-surface-500 text-sm">Question {{ answered_count|add:1 }} of {{ total_questions }}</span>
+      </div>
+      <!-- Timer -->
+      <div id="timer" class="badge bg-surface-800 text-surface-300 border border-surface-700 font-mono text-sm" style="min-width: 70px; text-align: center;">
+        0:00
+      </div>
     </div>
-    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Answer the Question</h1>
+    <!-- Progress bar -->
+    <div style="height: 4px; background: var(--surface-800); border-radius: 2px; overflow: hidden;">
+      <div style="height: 100%; width: {{ answered_count|add:1 }}00%; max-width: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s;"
+           id="progress-bar"></div>
+    </div>
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight mt-4">Answer the Question</h1>
   </div>
 
   <!-- Question Card -->
@@ -19,6 +30,13 @@
       </div>
       <p class="text-lg text-surface-100 leading-relaxed pt-0.5">{{ question.text }}</p>
     </div>
+    {% if question.difficulty %}
+    <div class="mt-4 ml-12">
+      <span class="badge {% if question.difficulty == 'easy' %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20{% elif question.difficulty == 'hard' %}bg-red-500/10 text-red-400 border-red-500/20{% else %}bg-amber-500/10 text-amber-400 border-amber-500/20{% endif %}" style="font-size: 0.7rem;">
+        {{ question.difficulty|title }}
+      </span>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Answer Form -->
@@ -27,12 +45,16 @@
       {% csrf_token %}
       <div>
         <label for="answer" class="label">Your Answer</label>
-        <input type="text" name="answer" id="answer" required
-               placeholder="Type your answer here...">
+        <textarea name="answer" id="answer" rows="5" required
+               placeholder="Type your detailed answer here..."></textarea>
       </div>
       <div class="flex items-center justify-end">
         <button type="submit" class="btn-primary text-sm">
-          Next Question
+          {% if answered_count|add:1 >= total_questions %}
+            Submit & View Results
+          {% else %}
+            Next Question
+          {% endif %}
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
           </svg>
@@ -41,4 +63,38 @@
     </form>
   </div>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  let seconds = 0;
+  const timerEl = document.getElementById('timer');
+  const progressBar = document.getElementById('progress-bar');
+  const total = {{ total_questions }};
+  const current = {{ answered_count|add:1 }};
+
+  // Set progress bar width
+  if (progressBar && total > 0) {
+    progressBar.style.width = ((current / total) * 100) + '%';
+  }
+
+  const interval = setInterval(function() {
+    seconds++;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    timerEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+
+    // 5-minute soft warning
+    if (seconds === 300 && typeof Toast !== 'undefined') {
+      Toast.warning('5 minutes elapsed -- consider moving on');
+      timerEl.style.color = 'var(--warning)';
+    }
+  }, 1000);
+
+  // Clean up on page leave
+  window.addEventListener('beforeunload', function() { clearInterval(interval); });
+})();
+</script>
 {% endblock %}

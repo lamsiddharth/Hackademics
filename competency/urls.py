@@ -13,4 +13,9 @@ urlpatterns = [
     path('interview-prep/', views.interview_prep_view, name='interview_prep'),
     path('interview-prep/<int:pk>/practice/', views.interview_practice_view, name='interview_practice'),
     path('interview-prep/clear/', views.clear_interview_questions, name='clear_interview_questions'),
+    # Interview Simulator
+    path('interview-simulator/', views.interview_simulator_start, name='interview_simulator_start'),
+    path('interview-simulator/<int:session_id>/q/<int:question_index>/', views.interview_simulator_question, name='interview_simulator_question'),
+    path('interview-simulator/<int:session_id>/result/', views.interview_simulator_result, name='interview_simulator_result'),
+    path('interview-simulator/<int:session_id>/report/', views.download_interview_report, name='interview_report'),
 ]

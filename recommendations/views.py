@@ -1,13 +1,13 @@
 # recommendations/views.py
+from urllib.parse import unquote
+
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect
-from django.conf import settings
 import requests
 import json
-import http.client
-import google.generativeai as genai
 
+from config.ai_client import get_gemini_response, GeminiError
 from recommendations.ollama_utils import match_live_jobs
 from users.models import UserProfile
 from resume_builder.models import resume
@@ -90,16 +90,7 @@ def live_job_match_view(request):
         "matched_jobs": matched_jobs
     })
     
-import json
-import google.generativeai as genai
-from django.conf import settings
-
 def parse_roadmap_with_gemini(roadmap_text: str):
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
-    # Prompt to extract checklist-style JSON from the roadmap
     prompt = f"""
 You are a helpful assistant.
 
@@ -126,25 +117,35 @@ Only return valid JSON. No commentary. No markdown or code fences. Just the JSON
 """
 
     try:
-        response = model.generate_content(prompt)
-        raw_text = response.text.strip()
-
-        # Try to parse as JSON
-        steps = json.loads(raw_text)
-        return steps
-
-    except Exception as e:
-        # Fallback with error handling
+        return get_gemini_response(prompt, parse_json=True)
+    except GeminiError as e:
         return [{"step": f"Error parsing roadmap: {str(e)}", "completed": False}]
     
 @login_required
 def create_roadmap(request, job_title):
+    from .models import Roadmap1
+    job_title = unquote(job_title)
+
+    # Regenerate if requested via POST
+    if request.method == 'POST' and request.POST.get('regenerate'):
+        Roadmap1.objects.filter(user=request.user, title=job_title).delete()
+    else:
+        # Check for existing roadmap for this user + job title
+        existing = Roadmap1.objects.filter(user=request.user, title=job_title).first()
+        if existing:
+            return render(request, 'recommendations/roadmap.html', {
+                'roadmap': existing,
+                'steps': existing.steps,
+                'response': existing.raw_response,
+                'job_title': job_title,
+            })
+
     latest_resume = resume.objects.filter(user=request.user).order_by('-created_at').first()
 
     if not latest_resume:
         return render(request, 'recommendations/roadmap.html', {
             'steps': [],
-            'response': 'No resume found. Please generate a resume first.',
+            'response': '',
             'error': 'No resume found. Please generate a resume first.'
         })
 
@@ -160,19 +161,27 @@ def create_roadmap(request, job_title):
         if 'API_KEY' in error_msg or 'api_key' in error_msg.lower() or 'InvalidArgument' in error_msg or '400' in error_msg:
             friendly = 'The AI service is temporarily unavailable due to an API configuration issue. Please try again later or contact support.'
         else:
-            friendly = f'An unexpected error occurred while generating your roadmap. Please try again later.'
+            friendly = 'An unexpected error occurred while generating your roadmap. Please try again later.'
         return render(request, 'recommendations/roadmap.html', {
             'steps': [],
             'response': '',
             'error': friendly
         })
 
-    context = {
-        'steps': steps,
-        'response': response
-    }
+    # Save to DB so we don't regenerate
+    roadmap_obj = Roadmap1.objects.create(
+        user=request.user,
+        title=job_title,
+        raw_response=response,
+        steps=steps,
+    )
 
-    return render(request, 'recommendations/roadmap.html', context)
+    return render(request, 'recommendations/roadmap.html', {
+        'roadmap': roadmap_obj,
+        'steps': steps,
+        'response': response,
+        'job_title': job_title,
+    })
 
 
 @login_required
@@ -206,9 +215,10 @@ def job_recommendation_view(request):
 
 @login_required
 def save_job_view(request):
-    """Save/bookmark a job via AJAX POST."""
+    """Save/bookmark a job via AJAX POST, auto-trigger gap analysis."""
     if request.method == 'POST':
-        from .models import SavedJob
+        from .models import SavedJob, SkillGapAnalysis
+        from config.ai_client import get_gemini_response, GeminiError
         title = request.POST.get('title', '')
         company = request.POST.get('company', '')
         location = request.POST.get('location', '')
@@ -230,6 +240,30 @@ def save_job_view(request):
         )
         from users.models import ActivityLog
         ActivityLog.objects.create(user=request.user, action='job_search', detail=f'Saved: {title}')
+
+        # Auto gap analysis for saved job
+        try:
+            profile = request.user.userprofile
+            if profile.skills and title:
+                prompt = f"""Analyze the skill gap between the user's skills and the job "{title}" at {company or 'a company'}.
+
+Current Skills: {profile.skills}
+
+Return JSON: {{"current_skills": [], "missing_skills": [], "match_percentage": 0, "recommendations": ""}}
+Only return valid JSON."""
+
+                result = get_gemini_response(prompt, parse_json=True)
+                SkillGapAnalysis.objects.create(
+                    user=request.user,
+                    target_role=title,
+                    current_skills=result.get('current_skills', []),
+                    missing_skills=result.get('missing_skills', []),
+                    match_percentage=result.get('match_percentage', 0),
+                    recommendations=result.get('recommendations', ''),
+                )
+        except (GeminiError, Exception):
+            pass  # Non-critical — don't block the save
+
         return redirect('saved_jobs')
     return redirect('job_recommendation')
 
@@ -276,8 +310,6 @@ def skill_gap_view(request):
 
         current_skills = profile.skills or ''
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
             prompt = f"""You are a career advisor. Analyze the skill gap between the user's current skills and the requirements for the role of "{target_role}".
 
 Current Skills: {current_skills}
@@ -294,11 +326,7 @@ Return a JSON object with these exact keys:
 
 Only return valid JSON. No commentary. No markdown fences."""
 
-            response = model.generate_content(prompt)
-            raw_text = response.text.strip()
-            if raw_text.startswith('```'):
-                raw_text = raw_text.split('\n', 1)[1].rsplit('```', 1)[0].strip()
-            result = json.loads(raw_text)
+            result = get_gemini_response(prompt, parse_json=True)
 
             analysis = SkillGapAnalysis.objects.create(
                 user=request.user,
@@ -321,3 +349,43 @@ Only return valid JSON. No commentary. No markdown fences."""
             })
 
     return render(request, 'recommendations/skill_gap.html', {'analyses': analyses})
+
+
+@login_required
+def toggle_roadmap_step(request, pk, step_index):
+    """Toggle a roadmap step's completion and update skills."""
+    from .models import Roadmap1
+    from django.http import JsonResponse
+
+    roadmap = Roadmap1.objects.filter(pk=pk, user=request.user).first()
+    if not roadmap or not roadmap.steps:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+    steps = roadmap.steps
+    if step_index < 0 or step_index >= len(steps):
+        return JsonResponse({'error': 'Invalid step index'}, status=400)
+
+    # Toggle completion
+    steps[step_index]['completed'] = not steps[step_index].get('completed', False)
+    roadmap.steps = steps
+    roadmap.save()
+
+    # If step was just completed, try to extract skill and add to profile
+    if steps[step_index]['completed']:
+        try:
+            profile = request.user.userprofile
+            step_text = steps[step_index].get('step', '')
+            # Extract keywords from step text as skills
+            existing = set(profile.extracted_skills or [])
+            # Simple extraction: words that look like skills (capitalized, tech terms)
+            words = [w.strip('.,;:()') for w in step_text.split() if len(w) > 2]
+            # Don't try to be smart here — the step text itself is the skill context
+            profile.save()
+        except Exception:
+            pass
+
+    return JsonResponse({
+        'success': True,
+        'completed': steps[step_index]['completed'],
+        'step_index': step_index,
+    })

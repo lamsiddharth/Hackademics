@@ -5,8 +5,11 @@
   <div class="mb-8">
     <div class="flex items-center gap-2 mb-3">
       <span class="badge bg-amber-500/10 text-amber-400 border border-amber-500/20">AI Generated</span>
+      {% if roadmap %}<span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">Saved</span>{% endif %}
     </div>
-    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Your Career Roadmap</h1>
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">
+      {% if job_title %}Roadmap: {{ job_title }}{% else %}Your Career Roadmap{% endif %}
+    </h1>
     <p class="text-surface-400 text-sm mt-1">Personalized learning path based on your profile</p>
   </div>
 
@@ -22,56 +25,151 @@
       <h3 class="text-lg font-semibold text-surface-200 mb-2">Unable to Generate Roadmap</h3>
       <p class="text-sm text-surface-400 max-w-md mb-6">{{ error }}</p>
       <div class="flex items-center gap-3">
-        <a href="{% url 'dashboard' %}" class="btn-secondary text-sm">Back to Dashboard</a>
-        <a href="{% url 'target_job' %}" class="btn-primary text-sm">Try Again</a>
+        <a href="{% url 'dashboard' %}" class="btn btn-ghost text-sm">Back to Dashboard</a>
+        <a href="{% url 'target_job' %}" class="btn btn-accent text-sm">Try Again</a>
       </div>
     </div>
   </div>
   {% else %}
 
-  <!-- AI Response -->
+  <!-- AI Analysis (rendered markdown) -->
   <div class="card-elevated p-6 mb-8">
     <div class="flex items-start gap-3 mb-4">
-      <div class="w-7 h-7 bg-gradient-to-br from-brand-400 to-brand-600 rounded-lg flex items-center justify-center flex-shrink-0">
-        <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <div class="w-7 h-7 bg-brand-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg class="w-3.5 h-3.5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
         </svg>
       </div>
       <h2 class="section-title pt-0.5">AI Analysis</h2>
     </div>
-    <div class="text-sm text-surface-300 leading-relaxed whitespace-pre-line pl-10">
-      {{ response }}
-    </div>
+    <div id="roadmap-content" class="pl-10 roadmap-markdown"></div>
+    <script type="text/plain" id="roadmap-raw">{{ response }}</script>
   </div>
 
   <!-- Step Checklist -->
   <div class="card-elevated p-6">
-    <h2 class="section-title mb-5">Action Steps</h2>
-    <form method="post">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="section-title" style="margin-bottom:0;">Action Steps</h2>
+      {% if roadmap %}
+      <span class="text-xs text-surface-500 font-mono" id="progress-label">0 / {{ steps|length }}</span>
+      {% endif %}
+    </div>
+    <div class="space-y-3">
+      {% for step in steps %}
+        <label class="flex items-start gap-3 p-3 rounded-lg cursor-pointer"
+               style="transition: background 0.2s;"
+               onmouseenter="this.style.background='rgba(255,255,255,0.03)'"
+               onmouseleave="this.style.background='transparent'">
+          <input type="checkbox"
+                 class="step-checkbox"
+                 data-index="{{ forloop.counter0 }}"
+                 {% if roadmap %}data-roadmap-id="{{ roadmap.pk }}"{% endif %}
+                 {% if step.completed %}checked{% endif %}
+                 style="margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer;">
+          <span class="text-sm text-surface-200 step-text {% if step.completed %}done{% endif %}">
+            {{ step.step }}
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+
+    {% if not roadmap %}
+    <div class="mt-6 pt-4" style="border-top: 1px solid var(--border-subtle);">
+      <p class="text-xs text-surface-500">Roadmap not saved. <a href="{% url 'target_job' %}" class="text-brand-400">Regenerate</a> to enable progress tracking.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Regenerate option -->
+  {% if roadmap %}
+  <div class="mt-6 flex items-center justify-between">
+    <a href="{% url 'target_job' %}" class="btn btn-ghost text-sm">New Roadmap</a>
+    <form method="post" action="" id="regen-form">
       {% csrf_token %}
-      <div class="space-y-3">
-        {% for step in steps %}
-          <label for="step_{{ forloop.counter }}" class="flex items-start gap-3 p-3 rounded-lg hover:bg-surface-700/50 transition-colors cursor-pointer group">
-            <input type="checkbox" name="step_{{ forloop.counter }}" id="step_{{ forloop.counter }}"
-                   class="mt-0.5 h-4 w-4 rounded border-surface-500 bg-surface-700 text-brand-500 focus:ring-brand-500/50 focus:ring-offset-0 cursor-pointer"
-                   {% if step.completed %}checked{% endif %}>
-            <span class="text-sm text-surface-200 group-hover:text-surface-50 transition-colors {% if step.completed %}line-through text-surface-500{% endif %}">
-              {{ step.step }}
-            </span>
-          </label>
-        {% endfor %}
-      </div>
-      <div class="mt-6 pt-4 border-t border-surface-600/50">
-        <button type="submit" class="btn-primary text-sm">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-          Save Progress
-        </button>
-      </div>
+      <input type="hidden" name="regenerate" value="1">
+      <button type="button" onclick="confirmRegen()" class="text-xs text-surface-500 hover:text-surface-300" style="background:none;border:none;cursor:pointer;">
+        Regenerate this roadmap
+      </button>
     </form>
   </div>
   {% endif %}
+
+  {% endif %}
 </div>
+
+<style>
+  .step-text.done { text-decoration: line-through; color: var(--text-muted); }
+  .roadmap-markdown h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin: 1.5rem 0 0.5rem; }
+  .roadmap-markdown h3 { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin: 1.25rem 0 0.4rem; }
+  .roadmap-markdown p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 0.5rem; }
+  .roadmap-markdown ul, .roadmap-markdown ol { padding-left: 1.25rem; margin-bottom: 0.75rem; }
+  .roadmap-markdown li { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 0.25rem; }
+  .roadmap-markdown strong { color: var(--text-primary); font-weight: 600; }
+  .roadmap-markdown em { color: var(--accent-light); font-style: italic; }
+  .roadmap-markdown a { color: var(--accent-light); text-decoration: underline; }
+  .roadmap-markdown hr { border: none; border-top: 1px solid var(--border-subtle); margin: 1rem 0; }
+  .roadmap-markdown code { font-family: var(--font-mono); font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.125rem 0.375rem; border-radius: 4px; }
+  .roadmap-markdown u { text-decoration: underline; text-underline-offset: 3px; }
+</style>
 {% endblock %}
 
+{% block extra_js %}
+<!-- Lightweight markdown parser -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Render markdown content
+  var rawEl = document.getElementById('roadmap-raw');
+  var container = document.getElementById('roadmap-content');
+  if (container && rawEl && rawEl.textContent.trim()) {
+    marked.setOptions({ breaks: true, gfm: true });
+    container.innerHTML = marked.parse(rawEl.textContent);
+  }
+
+  // AJAX step toggling
+  var checkboxes = document.querySelectorAll('.step-checkbox[data-roadmap-id]');
+  var totalSteps = checkboxes.length;
+
+  function updateProgress() {
+    var done = document.querySelectorAll('.step-checkbox[data-roadmap-id]:checked').length;
+    var label = document.getElementById('progress-label');
+    if (label) label.textContent = done + ' / ' + totalSteps;
+  }
+  updateProgress();
+
+  checkboxes.forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var idx = this.dataset.index;
+      var pk = this.dataset.roadmapId;
+      var textEl = this.closest('label').querySelector('.step-text');
+
+      if (this.checked) {
+        textEl.classList.add('done');
+      } else {
+        textEl.classList.remove('done');
+      }
+      updateProgress();
+
+      fetch('/recommendations/roadmap/toggle/' + pk + '/' + idx + '/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json'
+        }
+      }).catch(function() {
+        // Revert on failure
+        cb.checked = !cb.checked;
+        textEl.classList.toggle('done');
+        updateProgress();
+      });
+    });
+  });
+});
+
+function confirmRegen() {
+  if (confirm('This will delete the current roadmap and generate a new one. Continue?')) {
+    document.getElementById('regen-form').submit();
+  }
+}
+</script>
+{% endblock %}

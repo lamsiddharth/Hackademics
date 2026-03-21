@@ -1,10 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from users.models import UserProfile, ActivityLog
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from .utils import generate_full_resume, enhance_with_ollama
 from .models import resume
+from config.ai_client import get_gemini_response, GeminiError
 from io import BytesIO
 import json as _json
 
@@ -346,3 +348,126 @@ def download_resume_docx(request, pk=None):
     safe_name = my_resume.full_name.replace(' ', '_')
     response['Content-Disposition'] = f'attachment; filename="{safe_name}_Resume.docx"'
     return response
+
+
+@login_required
+def download_resume_pdf(request, pk):
+    """Download a resume as a pixel-perfect PDF via WeasyPrint."""
+    import weasyprint
+
+    my_resume = get_object_or_404(resume, pk=pk, user=request.user)
+
+    template_map = {1: 'pdf_classic', 2: 'pdf_modern', 3: 'pdf_minimal'}
+    template_name = f"resume_templates/{template_map.get(my_resume.template_used, 'pdf_classic')}.html"
+
+    context = {
+        'full_name': my_resume.full_name,
+        'phone_number': my_resume.phone_number,
+        'email': my_resume.email,
+        'location': my_resume.location,
+        'summary': my_resume.summary,
+        'skills': _safe_json(my_resume.skills, []),
+        'education': _safe_json(my_resume.education, []),
+        'experience': _safe_json(my_resume.experience, []),
+        'projects': _safe_json(my_resume.projects, []),
+        'achievements': _safe_json(my_resume.achievements, []),
+    }
+
+    html_string = render_to_string(template_name, context)
+    pdf = weasyprint.HTML(string=html_string).write_pdf()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    safe_name = my_resume.full_name.replace(' ', '_')
+    response['Content-Disposition'] = f'attachment; filename="{safe_name}_Resume.pdf"'
+    return response
+
+
+@login_required
+def preview_resume(request, pk):
+    """Render resume as standalone HTML for iframe preview."""
+    my_resume = get_object_or_404(resume, pk=pk, user=request.user)
+
+    template_map = {1: 'pdf_classic', 2: 'pdf_modern', 3: 'pdf_minimal'}
+    template_name = f"resume_templates/{template_map.get(my_resume.template_used, 'pdf_classic')}.html"
+
+    context = {
+        'full_name': my_resume.full_name,
+        'phone_number': my_resume.phone_number,
+        'email': my_resume.email,
+        'location': my_resume.location,
+        'summary': my_resume.summary,
+        'skills': _safe_json(my_resume.skills, []),
+        'education': _safe_json(my_resume.education, []),
+        'experience': _safe_json(my_resume.experience, []),
+        'projects': _safe_json(my_resume.projects, []),
+        'achievements': _safe_json(my_resume.achievements, []),
+    }
+
+    response = render(request, template_name, context)
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    return response
+
+
+@login_required
+def tailor_resume(request, pk):
+    """Tailor an existing resume to a specific job description using AI."""
+    if request.method != 'POST':
+        return redirect('edit_resume', pk=pk)
+
+    my_resume = get_object_or_404(resume, pk=pk, user=request.user)
+    job_description = request.POST.get('job_description', '').strip()
+
+    if not job_description:
+        messages.warning(request, 'Please provide a job description to tailor your resume.')
+        return redirect('edit_resume', pk=pk)
+
+    current_data = {
+        'summary': my_resume.summary,
+        'skills': _safe_json(my_resume.skills, []),
+        'education': _safe_json(my_resume.education, []),
+        'experience': _safe_json(my_resume.experience, []),
+        'projects': _safe_json(my_resume.projects, []),
+        'achievements': _safe_json(my_resume.achievements, []),
+    }
+
+    prompt = f"""You are a professional resume optimizer. Tailor the following resume to better match the target job description.
+
+RULES:
+- Do NOT invent new experience, skills, or qualifications not in the original resume.
+- Reorder sections and bullets to prioritize relevance to the job.
+- Rewrite bullets to emphasize skills/experience that match the job requirements.
+- Adjust the summary to target this specific role.
+- Keep all factual information accurate.
+
+CURRENT RESUME DATA:
+{_json.dumps(current_data, indent=2)}
+
+TARGET JOB DESCRIPTION:
+{job_description}
+
+Return the tailored resume in the EXACT same JSON format. No markdown fences. No commentary."""
+
+    try:
+        tailored = get_gemini_response(prompt, parse_json=True)
+
+        new_resume = resume.objects.create(
+            user=request.user,
+            full_name=my_resume.full_name,
+            phone_number=my_resume.phone_number,
+            email=my_resume.email,
+            location=my_resume.location,
+            summary=tailored.get('summary', my_resume.summary),
+            skills=_json.dumps(tailored.get('skills', []), ensure_ascii=False),
+            education=_json.dumps(tailored.get('education', []), ensure_ascii=False),
+            experience=_json.dumps(tailored.get('experience', []), ensure_ascii=False),
+            projects=_json.dumps(tailored.get('projects', []), ensure_ascii=False),
+            achievements=_json.dumps(tailored.get('achievements', []), ensure_ascii=False),
+            template_used=my_resume.template_used,
+        )
+        ActivityLog.objects.create(user=request.user, action='resume_generated', detail='Tailored for job')
+        messages.success(request, f'Resume tailored successfully! Original preserved as Resume #{my_resume.pk}.')
+        return redirect('view-resume', pk=new_resume.pk)
+
+    except GeminiError:
+        messages.error(request, 'AI service temporarily unavailable. Please try again.')
+        return redirect('edit_resume', pk=pk)

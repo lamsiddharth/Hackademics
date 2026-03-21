@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ full_name }} - Resume</title>
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 2.5cm;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #333;
+    background: #fff;
+  }
+  .header { margin-bottom: 16pt; }
+  .header h1 {
+    font-size: 24pt;
+    font-weight: 300;
+    color: #111;
+    letter-spacing: -0.5pt;
+    margin-bottom: 4pt;
+  }
+  .contact {
+    font-size: 9pt;
+    color: #777;
+    letter-spacing: 0.3pt;
+  }
+  .contact span + span::before {
+    content: " \00B7  ";
+    color: #ccc;
+  }
+  .section-title {
+    font-size: 9pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2pt;
+    color: #999;
+    margin: 18pt 0 8pt 0;
+  }
+  .summary {
+    font-size: 10pt;
+    color: #555;
+    line-height: 1.6;
+  }
+  .entry { margin-bottom: 10pt; }
+  .entry-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .entry-title { font-weight: 600; font-size: 10.5pt; color: #111; }
+  .entry-company { font-weight: 400; color: #555; font-size: 10pt; }
+  .entry-date { font-size: 9pt; color: #999; white-space: nowrap; }
+  ul { margin: 3pt 0 0 14pt; }
+  li { margin-bottom: 2pt; font-size: 10pt; color: #444; }
+  .skills-line { margin-bottom: 4pt; }
+  .skill-label { font-weight: 600; font-size: 9.5pt; color: #333; }
+  .skill-items { font-size: 9.5pt; color: #555; }
+  .tech-tag { color: #999; font-size: 9pt; }
+  .divider {
+    border: none;
+    border-top: 0.5pt solid #e0e0e0;
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ full_name }}</h1>
+    <div class="contact">
+      {% if email %}<span>{{ email }}</span>{% endif %}
+      {% if phone_number %}<span>{{ phone_number }}</span>{% endif %}
+      {% if location %}<span>{{ location }}</span>{% endif %}
+    </div>
+  </div>
+  <hr class="divider">
+
+  {% if summary %}
+  <div class="section-title">About</div>
+  <p class="summary">{{ summary }}</p>
+  {% endif %}
+
+  {% if experience %}
+  <div class="section-title">Experience</div>
+  {% for exp in experience %}
+  <div class="entry">
+    <div class="entry-row">
+      <div>
+        <span class="entry-title">{{ exp.title }}</span>
+        {% if exp.company %}<span class="entry-company"> at {{ exp.company }}</span>{% endif %}
+      </div>
+      {% if exp.dates %}<div class="entry-date">{{ exp.dates }}</div>{% endif %}
+    </div>
+    {% if exp.bullets %}
+    <ul>
+      {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if skills %}
+  <div class="section-title">Skills</div>
+  {% for cat in skills %}
+    {% if cat.category %}
+    <div class="skills-line">
+      <span class="skill-label">{{ cat.category }}: </span>
+      <span class="skill-items">{{ cat.items|join:", " }}</span>
+    </div>
+    {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if education %}
+  <div class="section-title">Education</div>
+  {% for edu in education %}
+  <div class="entry">
+    <div class="entry-row">
+      <div>
+        <span class="entry-title">{{ edu.institution }}</span>
+        {% if edu.degree %}<span class="entry-company"> &mdash; {{ edu.degree }}{% if edu.field %}, {{ edu.field }}{% endif %}</span>{% endif %}
+      </div>
+      {% if edu.dates %}<div class="entry-date">{{ edu.dates }}</div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if projects %}
+  <div class="section-title">Projects</div>
+  {% for proj in projects %}
+  <div class="entry">
+    <div class="entry-row">
+      <span class="entry-title">{{ proj.name }}</span>
+      {% if proj.tech %}<span class="tech-tag">{{ proj.tech }}</span>{% endif %}
+    </div>
+    {% if proj.bullets %}
+    <ul>
+      {% for bullet in proj.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if achievements %}
+  <div class="section-title">Achievements</div>
+  <ul>
+    {% for ach in achievements %}<li>{{ ach }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</body>
+</html>

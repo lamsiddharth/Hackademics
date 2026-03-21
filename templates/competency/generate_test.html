@@ -50,12 +50,19 @@
         </div>
 
         <div>
-          <label for="difficulty" class="label">Difficulty Level</label>
-          <select name="difficulty" id="difficulty">
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
+          <label for="seniority" class="label">Seniority Level</label>
+          <select name="seniority" id="seniority">
+            <option value="junior">Junior / Entry-level</option>
+            <option value="mid" selected>Mid-level</option>
+            <option value="senior">Senior</option>
+            <option value="staff">Staff / Lead</option>
           </select>
+        </div>
+
+        <div>
+          <label for="company_type" class="label">Company Type <span class="text-surface-500">(optional)</span></label>
+          <input type="text" name="company_type" id="company_type"
+            placeholder="e.g., Startup, Enterprise, FAANG">
         </div>
 
         <button type="submit" class="btn-primary w-full text-sm">

@@ -11,5 +11,6 @@ urlpatterns = [
      path('saved-jobs/', saved_jobs_view, name='saved_jobs'),
      path('saved-jobs/remove/<int:pk>/', remove_saved_job, name='remove_saved_job'),
      path('skill-gap/', skill_gap_view, name='skill_gap'),
+     path('roadmap/toggle/<int:pk>/<int:step_index>/', toggle_roadmap_step, name='toggle_roadmap_step'),
 ]
 

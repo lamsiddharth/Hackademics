@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto animate-slide-up">
+  <!-- Progress Bar -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-surface-400 text-sm">Question {{ question_index|add:1 }} of {{ total_questions }}</span>
+      <div id="countdown" class="badge bg-red-500/10 text-red-400 border border-red-500/20 font-mono text-sm" style="min-width: 70px; text-align: center;">
+        3:00
+      </div>
+    </div>
+    <div style="height: 4px; background: var(--surface-800); border-radius: 2px; overflow: hidden;">
+      <div style="height: 100%; width: {{ progress_pct }}%; background: var(--accent); border-radius: 2px; transition: width 0.3s;"></div>
+    </div>
+  </div>
+
+  <!-- Mode Badge -->
+  <div class="flex items-center gap-2 mb-4">
+    <span class="badge bg-red-500/10 text-red-400 border border-red-500/20">Simulator Mode</span>
+    <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
+  </div>
+
+  <!-- Question Card -->
+  <div class="card-elevated p-8 mb-6">
+    <div class="flex items-start gap-4">
+      <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-red-400 to-red-600 rounded-lg flex items-center justify-center">
+        <span class="text-white font-bold">{{ question_index|add:1 }}</span>
+      </div>
+      <p class="text-lg text-surface-100 leading-relaxed pt-1">{{ question.question_text }}</p>
+    </div>
+  </div>
+
+  <!-- Answer Form -->
+  <div class="card p-6">
+    <form method="post" id="answer-form">
+      {% csrf_token %}
+      <input type="hidden" name="time_taken" id="time_taken" value="0">
+
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <label for="user_answer" class="label">Your Answer</label>
+          <!-- Voice Toggle -->
+          <button type="button" id="voice-toggle" class="btn-ghost text-xs" style="display: none;" title="Toggle voice input">
+            <svg class="w-4 h-4" id="mic-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+            </svg>
+            <span id="voice-label">Voice</span>
+          </button>
+        </div>
+        <textarea name="user_answer" id="user_answer" rows="6" required
+                  placeholder="Type your answer... Be thorough but concise."></textarea>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-surface-500">You cannot go back to previous questions</p>
+        <button type="submit" class="btn-primary text-sm">
+          {% if question_index|add:1 >= total_questions %}
+            Finish Interview
+          {% else %}
+            Next Question
+          {% endif %}
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  // Countdown timer (3 minutes)
+  let remaining = 180;
+  let elapsed = 0;
+  const countdownEl = document.getElementById('countdown');
+  const timeInput = document.getElementById('time_taken');
+  const form = document.getElementById('answer-form');
+
+  const interval = setInterval(function() {
+    remaining--;
+    elapsed++;
+    timeInput.value = elapsed;
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    countdownEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+
+    if (remaining <= 30) {
+      countdownEl.style.color = 'var(--danger, #FF4757)';
+      countdownEl.style.fontWeight = '700';
+    }
+
+    if (remaining <= 0) {
+      clearInterval(interval);
+      if (typeof Toast !== 'undefined') Toast.warning('Time is up! Submitting your answer...');
+      setTimeout(function() { form.submit(); }, 1000);
+    }
+  }, 1000);
+
+  // Voice input
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const voiceBtn = document.getElementById('voice-toggle');
+    const textarea = document.getElementById('user_answer');
+    const voiceLabel = document.getElementById('voice-label');
+    const micIcon = document.getElementById('mic-icon');
+    voiceBtn.style.display = 'flex';
+    let recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    let isListening = false;
+
+    voiceBtn.addEventListener('click', function() {
+      if (isListening) {
+        recognition.stop();
+        isListening = false;
+        voiceLabel.textContent = 'Voice';
+        micIcon.style.color = '';
+      } else {
+        recognition.start();
+        isListening = true;
+        voiceLabel.textContent = 'Listening...';
+        micIcon.style.color = 'var(--danger, #FF4757)';
+      }
+    });
+
+    recognition.onresult = function(event) {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      textarea.value = transcript;
+    };
+
+    recognition.onend = function() {
+      if (isListening) {
+        recognition.start(); // Keep listening
+      }
+    };
+  }
+})();
+</script>
+{% endblock %}

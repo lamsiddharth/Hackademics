@@ -1,12 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto animate-slide-up">
+<div class="max-w-4xl mx-auto animate-slide-up">
   <!-- Header -->
   <div class="mb-8">
     <div class="flex items-center gap-2 mb-3">
       <span class="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Completed</span>
       <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
+      {% if session.seniority %}
+      <span class="badge bg-surface-700 text-surface-300 border border-surface-600">{{ session.get_seniority_display }}</span>
+      {% endif %}
     </div>
     <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Test Results</h1>
   </div>
@@ -19,59 +22,192 @@
     </svg>
     <div>
       <p class="text-sm font-semibold text-amber-400">AI Evaluation Unavailable</p>
-      <p class="text-xs text-surface-400 mt-0.5">The AI scoring service was temporarily unavailable. Your answers were saved but the score shown may be inaccurate. Try retaking the test to get a proper evaluation.</p>
+      <p class="text-xs text-surface-400 mt-0.5">Scoring service was temporarily unavailable. Scores may be inaccurate.</p>
     </div>
   </div>
   {% endif %}
 
-  <!-- Score Cards -->
-  <div class="grid grid-cols-2 gap-4 mb-8">
-    <div class="stat-card">
-      <span class="stat-label">Questions Answered</span>
-      <span class="stat-value">{{ answers|length }}</span>
+  <!-- Score + Radar Chart Row -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Score Ring -->
+    <div class="card-elevated p-8 flex flex-col items-center justify-center">
+      <div class="career-score-ring" style="width: 160px; height: 160px; position: relative;">
+        <svg viewBox="0 0 180 180" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+          <circle cx="90" cy="90" r="75" fill="none" stroke="var(--surface-800)" stroke-width="10"/>
+          <circle cx="90" cy="90" r="75" fill="none"
+                  stroke="{% if session.score >= 70 %}var(--success){% elif session.score >= 40 %}var(--warning){% else %}var(--danger, #FF4757){% endif %}"
+                  stroke-width="10" stroke-linecap="round"
+                  stroke-dasharray="{{ session.score|default:0 }}% 1000%"
+                  data-score="{{ session.score|default:0 }}" data-radius="75"
+                  class="score-circle"/>
+        </svg>
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <span class="stat-value" style="font-size: 2.5rem;" data-count-to="{{ session.score|default:0 }}">0</span>
+          <span class="text-surface-400 text-sm">percent</span>
+        </div>
+      </div>
+      <div class="mt-4 text-center">
+        <p class="text-surface-300 text-sm">{{ correct_count }} of {{ total_count }} correct</p>
+      </div>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Score</span>
-      <span class="stat-value text-brand-400">{{ session.score|default:'—' }}<span class="text-lg text-surface-400">%</span></span>
+
+    <!-- Radar Chart -->
+    <div class="card-elevated p-6">
+      <h3 class="text-sm font-semibold text-surface-300 mb-4">Skill Coverage</h3>
+      <canvas id="radarChart" style="max-height: 250px;"></canvas>
     </div>
   </div>
 
+  <!-- Skill Tags -->
+  {% if all_skills %}
+  <div class="card p-4 mb-6">
+    <h3 class="text-sm font-semibold text-surface-300 mb-3">Skills Demonstrated</h3>
+    <div class="flex flex-wrap gap-2">
+      {% for skill in all_skills %}
+      <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ skill }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Question-wise Breakdown -->
   <div class="mb-6">
-    <h2 class="section-title mb-4">Question-wise Summary</h2>
-    <div class="space-y-3">
+    <h2 class="section-title mb-4">Detailed Breakdown</h2>
+    <div class="space-y-4">
       {% for a in answers %}
         <div class="card p-5 border-l-2 {% if a.is_correct %}border-l-emerald-500{% else %}border-l-red-500{% endif %}">
-          <p class="text-surface-100 text-sm font-medium mb-3">{{ a.question.text }}</p>
-          <div class="flex items-center justify-between">
-            <p class="text-sm text-surface-400">
-              Your answer: <span class="text-surface-200">{{ a.selected_answer }}</span>
-            </p>
-            {% if a.is_correct %}
-              <span class="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-                Correct
+          <!-- Question + Score -->
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <p class="text-surface-100 text-sm font-medium flex-1">{{ a.question.text }}</p>
+            <div class="flex-shrink-0" style="width: 48px; height: 48px; position: relative;">
+              <svg viewBox="0 0 48 48" style="transform: rotate(-90deg);">
+                <circle cx="24" cy="24" r="20" fill="none" stroke="var(--surface-700)" stroke-width="3"/>
+                <circle cx="24" cy="24" r="20" fill="none"
+                        stroke="{% if a.score >= 0.5 %}var(--success){% else %}var(--danger, #FF4757){% endif %}"
+                        stroke-width="3" stroke-linecap="round"
+                        stroke-dasharray="{% widthratio a.score|default:0 1 125.6 %} 125.6"/>
+              </svg>
+              <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-family: var(--font-mono); color: var(--text-secondary);">
+                {{ a.score|floatformat:1|default:"0" }}
               </span>
-            {% else %}
-              <span class="badge bg-red-500/10 text-red-400 border border-red-500/20">
-                <svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-                Incorrect
-              </span>
-            {% endif %}
+            </div>
           </div>
+
+          <!-- Your Answer -->
+          <p class="text-sm text-surface-400 mb-2">
+            <span class="text-surface-500">Your answer:</span> {{ a.selected_answer }}
+          </p>
+
+          <!-- Strengths + Gaps -->
+          {% if a.strengths %}
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            {% for s in a.strengths %}
+            <span class="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" style="font-size: 0.7rem;">{{ s }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if a.gaps %}
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            {% for g in a.gaps %}
+            <span class="badge bg-amber-500/10 text-amber-400 border border-amber-500/20" style="font-size: 0.7rem;">{{ g }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <!-- Skill Tags -->
+          {% if a.skill_tags %}
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            {% for tag in a.skill_tags %}
+            <span class="badge bg-brand-500/10 text-brand-300 border border-brand-500/20" style="font-size: 0.65rem;">{{ tag }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <!-- Expert Answer (Collapsible) -->
+          {% if a.model_answer %}
+          <details class="mt-3">
+            <summary class="text-sm text-brand-400 cursor-pointer hover:text-brand-300" style="list-style: none;">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+                See Expert Answer
+              </span>
+            </summary>
+            <div class="mt-2 p-3 rounded-lg" style="background: var(--surface-800);">
+              <p class="text-sm text-surface-300 leading-relaxed">{{ a.model_answer }}</p>
+            </div>
+          </details>
+          {% endif %}
         </div>
       {% endfor %}
     </div>
   </div>
 
   <!-- Actions -->
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3 pb-8">
     <a href="{% url 'dashboard' %}" class="btn-secondary text-sm">Back to Dashboard</a>
     <a href="{% url 'history_test' %}" class="btn-ghost text-sm">View All History</a>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Radar Chart
+  const labels = {{ radar_labels|safe }};
+  const values = {{ radar_values|safe }};
+
+  if (labels.length > 0 && document.getElementById('radarChart')) {
+    new Chart(document.getElementById('radarChart'), {
+      type: 'radar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Score %',
+          data: values,
+          backgroundColor: 'rgba(108, 99, 255, 0.15)',
+          borderColor: 'rgba(108, 99, 255, 0.8)',
+          pointBackgroundColor: 'rgba(108, 99, 255, 1)',
+          pointBorderColor: '#fff',
+          pointRadius: 4,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 100,
+            ticks: { display: false },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            angleLines: { color: 'rgba(255,255,255,0.06)' },
+            pointLabels: { color: '#9ca3af', font: { size: 11 } },
+          }
+        },
+        plugins: {
+          legend: { display: false },
+        }
+      }
+    });
+  }
+
+  // Animate score circle
+  document.querySelectorAll('.score-circle').forEach(function(circle) {
+    const score = parseFloat(circle.dataset.score || 0);
+    const r = parseFloat(circle.dataset.radius || 75);
+    const circumference = 2 * Math.PI * r;
+    const offset = circumference - (score / 100) * circumference;
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = circumference;
+    setTimeout(function() {
+      circle.style.transition = 'stroke-dashoffset 1s ease';
+      circle.style.strokeDashoffset = offset;
+    }, 200);
+  });
+});
+</script>
 {% endblock %}

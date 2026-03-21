@@ -1,16 +1,12 @@
 # recommendations/ollama_utils.py
 # Replaces dead Ollama/Mistral calls with Gemini for live job matching
 
-import json
-import google.generativeai as genai
-from django.conf import settings
+import re
+from config.ai_client import get_gemini_response, GeminiError
 
 
 def extract_skills_from_profile(profile_data: str) -> list[str]:
     """Extract skills from free-form profile text using Gemini."""
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
     prompt = f"""You are a skill extraction assistant. Extract a clean list of hard skills, soft skills, technologies, and tools from this profile:
 
 {profile_data}
@@ -18,11 +14,10 @@ def extract_skills_from_profile(profile_data: str) -> list[str]:
 Return only a comma-separated list of skills. No commentary. No markdown."""
 
     try:
-        response = model.generate_content(prompt)
-        content = response.text.strip()
+        content = get_gemini_response(prompt)
         skills = [skill.strip() for skill in content.split(",") if skill.strip()]
         return skills
-    except Exception:
+    except GeminiError:
         return []
 
 
@@ -31,13 +26,9 @@ def match_live_jobs(skills: list[str], jobs: list[dict]) -> list[dict]:
     if not skills or not jobs:
         return []
 
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
     skill_str = ", ".join(skills)
 
     # Clean job descriptions — strip HTML tags and truncate for token efficiency
-    import re
     def clean_desc(text):
         text = re.sub(r'<[^>]+>', ' ', text or '')
         text = re.sub(r'\s+', ' ', text).strip()
@@ -65,10 +56,6 @@ Return ONLY a JSON array in this exact format:
 No commentary. No markdown. Only valid JSON."""
 
     try:
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
-        if raw.startswith('```'):
-            raw = raw.split('\n', 1)[1].rsplit('```', 1)[0].strip()
-        return json.loads(raw)
-    except Exception:
+        return get_gemini_response(prompt, parse_json=True)
+    except GeminiError:
         return []

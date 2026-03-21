@@ -1,6 +1,4 @@
-import google.generativeai as genai
-from django.conf import settings
-import json
+from config.ai_client import get_gemini_response, GeminiError
 
 
 def generate_full_resume(profile, email):
@@ -12,9 +10,6 @@ def generate_full_resume(profile, email):
     - Only polish grammar, fix action verbs, and add structure.
     - Return a clean JSON structure with typed arrays for each section.
     """
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
     prompt = f"""You are a professional resume formatter. Your ONLY job is to take the raw profile data below and REFORMAT it into a clean, structured JSON — without inventing, fabricating, adding, or implying ANY information not explicitly present in the input.
 
 PROFILE DATA (this is the ONLY source of truth — do NOT add anything else):
@@ -85,14 +80,7 @@ Return ONLY this exact JSON. No markdown. No commentary. No extra keys:
 }}"""
 
     try:
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
-
-        # Strip markdown code fences if present
-        if raw.startswith('```'):
-            raw = raw.split('\n', 1)[1].rsplit('```', 1)[0].strip()
-
-        result = json.loads(raw)
+        result = get_gemini_response(prompt, parse_json=True)
 
         # Validate expected structure — return fallback for any missing key
         return {
@@ -104,7 +92,7 @@ Return ONLY this exact JSON. No markdown. No commentary. No extra keys:
             'achievements': result.get('achievements', []),
         }
 
-    except Exception:
+    except (GeminiError, Exception):
         # Fallback: return raw profile data as plain-text arrays
         return _plain_fallback(profile)
 
@@ -131,14 +119,10 @@ def enhance_with_ollama(prompt_text: str) -> str:
     Legacy enhancement function kept for backward compatibility.
     Used for quick single-field polishing.
     """
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
     system_prompt = (
         "You are a professional resume writer. "
         "Improve the grammar, clarity and professional tone of the following text. "
         "Use strong action verbs. Do NOT invent new information. "
         "Return the improved text only, no commentary."
     )
-    response = model.generate_content(f"{system_prompt}\n\n{prompt_text}")
-    return response.text
+    return get_gemini_response(f"{system_prompt}\n\n{prompt_text}")

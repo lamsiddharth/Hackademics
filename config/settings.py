@@ -94,6 +94,13 @@ DATABASES = {
     }
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'hackademics-cache',
+    }
+}
+
 AUTH_USER_MODEL = 'users.User'
 
 # Password validation

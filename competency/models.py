@@ -25,8 +25,16 @@ class Question(models.Model):
 
 
 class CompetencyTestSession(models.Model):
+    SENIORITY_CHOICES = [
+        ('junior', 'Junior'),
+        ('mid', 'Mid-Level'),
+        ('senior', 'Senior'),
+        ('staff', 'Staff/Lead'),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     job_role = models.CharField(max_length=100)
+    seniority = models.CharField(max_length=20, choices=SENIORITY_CHOICES, default='mid')
+    company_type = models.CharField(max_length=100, blank=True)
     score = models.FloatField(null=True, blank=True)
     completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -39,7 +47,36 @@ class Answer(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     selected_answer = models.TextField(blank=True)
     is_correct = models.BooleanField(default=False)
+    score = models.FloatField(null=True, blank=True)
+    feedback = models.TextField(blank=True)
+    strengths = models.JSONField(default=list, blank=True)
+    gaps = models.JSONField(default=list, blank=True)
+    skill_tags = models.JSONField(default=list, blank=True)
+    model_answer = models.TextField(blank=True)
     answered_at = models.DateTimeField(auto_now_add=True)
+
+
+class InterviewSession(models.Model):
+    """A timed interview simulation session."""
+    MODE_CHOICES = [
+        ('practice', 'Practice'),
+        ('simulator', 'Simulator'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interview_sessions')
+    job_role = models.CharField(max_length=100)
+    category = models.CharField(max_length=20, default='technical')
+    mode = models.CharField(max_length=20, choices=MODE_CHOICES, default='practice')
+    overall_score = models.FloatField(null=True, blank=True)
+    hire_decision = models.CharField(max_length=20, blank=True)
+    confidence_scores = models.JSONField(default=list, blank=True)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.job_role} Interview ({self.mode})"
 
 
 class InterviewQuestion(models.Model):
@@ -51,6 +88,7 @@ class InterviewQuestion(models.Model):
         ('system_design', 'System Design'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interview_questions')
+    session = models.ForeignKey(InterviewSession, null=True, blank=True, on_delete=models.SET_NULL, related_name='questions')
     job_role = models.CharField(max_length=100)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     question_text = models.TextField()
@@ -58,6 +96,8 @@ class InterviewQuestion(models.Model):
     user_answer = models.TextField(blank=True)
     feedback = models.TextField(blank=True)
     score = models.FloatField(null=True, blank=True)
+    confidence = models.FloatField(null=True, blank=True)
+    time_taken = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

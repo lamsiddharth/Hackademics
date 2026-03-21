@@ -1,11 +1,7 @@
-import google.generativeai as genai
-from django.conf import settings
+from config.ai_client import get_gemini_response, GeminiError
 
 
 def generate_learning_roadmap(skills, projects, experience, target_job):
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-
-    # Format the input into a clean prompt
     prompt = f"""
 You are a career mentor. Based on the following user profile, identify the skills they are lacking to become a successful {target_job}.
 Then, generate a detailed, step-by-step learning roadmap for the next 3–4 months.
@@ -29,10 +25,7 @@ Output Format:
 Be realistic, practical, and focused on relevant technologies and goals. Avoid suggesting skills the user already has.
 """
 
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-    response = model.generate_content(prompt)
-
-    return response.text
+    return get_gemini_response(prompt)
 
 
 import http.client
@@ -40,9 +33,7 @@ import json
 
 
 def extract_skills_from_profile(location, skills, experience, projects):
-    genai.configure(api_key=settings.GEMINI_API_KEY)
     try:
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
         prompt = f"""
         Based on the user's professional information, extract a clean and concise list of technical and relevant soft skills only. Avoid repetitions.
 
@@ -54,13 +45,11 @@ def extract_skills_from_profile(location, skills, experience, projects):
         Respond with only a comma-separated list of skills.
         """
 
-        response = model.generate_content(prompt)
-        extracted_skills = response.text.strip()
+        extracted_skills = get_gemini_response(prompt)
 
-        # Optional: Clean up whitespace and return as list
         return [skill.strip() for skill in extracted_skills.split(',') if skill.strip()]
 
-    except Exception as e:
+    except (GeminiError, Exception) as e:
         return [f"Error: {str(e)}"]
 
 

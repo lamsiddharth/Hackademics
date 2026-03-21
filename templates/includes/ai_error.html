@@ -1,0 +1,15 @@
+<!-- Reusable AI error fallback card -->
+<!-- Usage: {% include 'includes/ai_error.html' with error=error %} -->
+<div class="glass-card-static" style="padding: 1.5rem; margin: 1rem 0; border-left: 3px solid var(--warning);">
+  <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5" style="flex-shrink: 0; margin-top: 2px;">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+    </svg>
+    <div>
+      <div style="font-weight: 600; font-size: 0.9rem; color: var(--warning); margin-bottom: 0.25rem;">AI Service Unavailable</div>
+      <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+        {{ error|default:"The AI service is temporarily unavailable. Please try again later or contact support." }}
+      </div>
+    </div>
+  </div>
+</div>
