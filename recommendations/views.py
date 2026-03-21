@@ -11,7 +11,7 @@ import google.generativeai as genai
 from recommendations.ollama_utils import match_live_jobs
 from users.models import UserProfile
 from resume_builder.models import resume
-from .utils import generate_learning_roadmap, extract_skills_from_profile, fetch_jobs
+from .utils import generate_learning_roadmap, extract_skills_from_profile, fetch_jobs, fetch_jobs_remotive
 
 
 @login_required
@@ -60,12 +60,13 @@ def live_job_match_view(request):
             "error": "Please extract your skills first."
         })
 
-    # Use top skills as query (or a fixed job title from user input)
-    query = "+".join(skills[:3])  # limit query length
-    api_url = f"https://remotive.io/api/remote-jobs?search={query}"
+    # Use fixed job title 'data-scientist'
+    query = "data-scientist"
+    api_url = f"https://remotive.com/api/remote-jobs?search={query}"
 
     try:
-        res = requests.get(api_url)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(api_url, headers=headers)
         data = res.json()
         jobs = data.get("jobs", [])[:10]  # limit to 10 for now
     except:
@@ -96,83 +97,88 @@ from django.conf import settings
 
 def parse_roadmap_with_gemini(roadmap_text: str):
     genai.configure(api_key=settings.GEMINI_API_KEY)
-
     model = genai.GenerativeModel(settings.GEMINI_MODEL)
-
-    # Prompt to extract checklist-style JSON from the roadmap
-    prompt = f"""
-You are a helpful assistant.
-
-Take the following roadmap text and convert it into structured JSON. Each step should be a short sentence or phrase with a `step` and a `completed` flag (default to false).
-
-Roadmap:
-\"\"\"
-{roadmap_text}
-\"\"\"
-
-Output format:
-[
-  {{
-    "step": "First task",
-    "completed": false
-  }},
-  {{
-    "step": "Second task",
-    "completed": false
-  }}
-]
-
-Only return valid JSON. No commentary. No markdown or code fences. Just the JSON array.
-"""
-
+    prompt = f"You are a helpful assistant.\n\nTake the following roadmap text and convert it into structured JSON. Each step should be a short sentence or phrase with a `step` and a `completed` flag (default to false).\n\nRoadmap:\n\"\"\"\n{roadmap_text}\n\"\"\"\n\nOutput format:\n[\n  {{\n    \"step\": \"First task\",\n    \"completed\": false\n  }}\n]\n\nOnly return valid JSON. No commentary. No markdown or code fences. Just the JSON array."
     try:
         response = model.generate_content(prompt)
         raw_text = response.text.strip()
-
-        # Try to parse as JSON
-        steps = json.loads(raw_text)
-        return steps
-
+        if raw_text.startswith('```json'): raw_text = raw_text[7:]
+        if raw_text.startswith('```'): raw_text = raw_text[3:]
+        if raw_text.endswith('```'): raw_text = raw_text[:-3]
+        return json.loads(raw_text.strip())
     except Exception as e:
-        # Fallback with error handling
         return [{"step": f"Error parsing roadmap: {str(e)}", "completed": False}]
-    
+
 @login_required
 def create_roadmap(request, job_title):
-    latest_resume = resume.objects.filter(user=request.user).order_by('-created_at').first()
+    from .models import Roadmap1
+    from django.utils.safestring import mark_safe
+    import re
+    
+    roadmap_obj = Roadmap1.objects.filter(user=request.user, title=job_title).order_by('-created_at').first()
 
-    if not latest_resume:
-        return render(request, 'recommendations/roadmap.html', {
-            'steps': [],
-            'response': 'No resume found. Please generate a resume first.',
-            'error': 'No resume found. Please generate a resume first.'
-        })
+    if request.method == 'POST':
+        if not roadmap_obj:
+            return redirect('target_job')
+            
+        from competency.utils import extract_skills_from_text
+        try: profile = request.user.userprofile
+        except Exception: profile = None
+            
+        steps = roadmap_obj.steps
+        for i, step in enumerate(steps, 1):
+            checkbox_name = f'step_{i}'
+            was_completed = step.get('completed', False)
+            is_completed = request.POST.get(checkbox_name) == 'on'
+            
+            if not was_completed and is_completed:
+                step['completed'] = True
+                if profile:
+                    extracted_skills = extract_skills_from_text(step['step'])
+                    current_skills = [s.strip() for s in profile.skills.split(',') if s.strip()] if profile.skills else []
+                    for skill in extracted_skills:
+                        if skill.lower() not in [s.lower() for s in current_skills]:
+                            current_skills.append(skill)
+                        if isinstance(profile.extracted_skills, list):
+                            if skill.lower() not in [s.lower() for s in profile.extracted_skills]:
+                                profile.extracted_skills.append(skill)
+                    profile.skills = ', '.join(current_skills)
+                    profile.save()
+            elif was_completed and not is_completed:
+                step['completed'] = False
+                
+        roadmap_obj.steps = steps
+        roadmap_obj.save()
+        return redirect('create_roadmap', job_title=job_title)
 
-    skills = latest_resume.skills
-    projects = latest_resume.projects
-    experience = latest_resume.experience
+    if not roadmap_obj:
+        latest_resume = resume.objects.filter(user=request.user).order_by('-created_at').first()
+        if not latest_resume:
+            return render(request, 'recommendations/roadmap.html', {'steps': [], 'response': 'No resume found. Please generate a resume first.', 'error': 'No resume found.'})
 
-    try:
-        response = generate_learning_roadmap(skills, projects, experience, job_title)
-        steps = parse_roadmap_with_gemini(response)
-    except Exception as e:
-        error_msg = str(e)
-        if 'API_KEY' in error_msg or 'api_key' in error_msg.lower() or 'InvalidArgument' in error_msg or '400' in error_msg:
-            friendly = 'The AI service is temporarily unavailable due to an API configuration issue. Please try again later or contact support.'
-        else:
-            friendly = f'An unexpected error occurred while generating your roadmap. Please try again later.'
-        return render(request, 'recommendations/roadmap.html', {
-            'steps': [],
-            'response': '',
-            'error': friendly
-        })
+        skills = latest_resume.skills
+        projects = latest_resume.projects
+        experience = latest_resume.experience
 
-    context = {
-        'steps': steps,
-        'response': response
-    }
+        try:
+            from .utils import generate_learning_roadmap
+            response = generate_learning_roadmap(skills, projects, experience, job_title)
+            steps = parse_roadmap_with_gemini(response)
+            roadmap_obj = Roadmap1.objects.create(user=request.user, title=job_title, raw_response=response, steps=steps)
+        except Exception as e:
+            return render(request, 'recommendations/roadmap.html', {'steps': [], 'response': '', 'error': f'An unexpected error occurred: {str(e)}'})
 
-    return render(request, 'recommendations/roadmap.html', context)
+    def md2html(text):
+        text = str(text).replace('\n', '<br>')
+        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+        text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+        text = re.sub(r'#+ (.*)', r'<h3>\1</h3><br>', text)
+        return text
+        
+    return render(request, 'recommendations/roadmap.html', {
+        'steps': roadmap_obj.steps,
+        'response': mark_safe(md2html(roadmap_obj.raw_response))
+    })
 
 
 @login_required
@@ -192,13 +198,19 @@ def job_recommendation_view(request):
     projects = myprofile.projects
     location = myprofile.location
 
+    # hardcoded 'data-scientist' as per the request
+    keywords = "technology, data analysis, machine learning, programming"  # This could be improved by using actual skills from the profile
+    jobs = []
+
     try:
-        keywords = extract_skills_from_profile(location, skills, experience, projects)
-        jobs = fetch_jobs(keywords, location)
+        if settings.JOOBLE_API_KEY:
+            jobs = fetch_jobs(keywords, location)
+        if not jobs:
+            jobs = fetch_jobs_remotive(keywords, limit=10)
     except Exception:
         return render(request, 'recommendations/topjobs.html', {
             'jobs': [],
-            'error': 'The AI service is temporarily unavailable. Please try again later.'
+            'error': 'Job services are temporarily unavailable. Please try again later.'
         })
 
     return render(request, 'recommendations/topjobs.html', {'jobs': jobs})

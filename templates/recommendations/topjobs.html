@@ -57,9 +57,6 @@
               {% endif %}
             </div>
 
-            {% if job.snippet %}
-              <p class="text-sm text-surface-400 leading-relaxed line-clamp-4 mb-4">{{ job.snippet|safe }}</p>
-            {% endif %}
           </div>
 
           <div class="flex items-center gap-3">
@@ -69,6 +66,12 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
               </svg>
             </a>
+            <button type="button" class="inline-flex items-center gap-1.5 text-sm font-medium text-surface-200 hover:text-white transition-colors" data-modal-open data-job-title="{{ job.title|escape }}">
+              View Details
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5h7.5M8.25 9h7.5M8.25 13.5h7.5M8.25 18h7.5" />
+              </svg>
+            </button>
             <form method="post" action="{% url 'save_job' %}" class="inline">
               {% csrf_token %}
               <input type="hidden" name="title" value="{{ job.title }}">
@@ -81,6 +84,9 @@
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" /></svg>
               </button>
             </form>
+          </div>
+          <div class="hidden" data-job-description>
+            {{ job.snippet|safe }}
           </div>
         </div>
       {% endfor %}
@@ -95,4 +101,92 @@
     </div>
   {% endif %}
 </div>
+
+<div id="job-modal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-surface-900/85 backdrop-blur-md" data-modal-close></div>
+  <div class="relative mx-auto mt-10 w-[92%] max-w-3xl">
+    <div class="bg-gradient-to-b from-surface-800 to-surface-900 border border-surface-700/70 rounded-2xl shadow-2xl shadow-black/40 p-6 sm:p-8 animate-slide-up max-h-[82vh] overflow-hidden">
+      <div class="flex items-start justify-between gap-4 pb-4 border-b border-surface-700/60">
+        <h3 id="job-modal-title" class="text-lg sm:text-xl font-semibold text-surface-50"></h3>
+        <button type="button" class="text-surface-400 hover:text-surface-100" data-modal-close aria-label="Close">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div id="job-modal-body" class="job-modal-body mt-4 text-sm text-surface-200 overflow-y-auto pr-2 max-h-[64vh]">
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .job-modal-body h1,
+  .job-modal-body h2,
+  .job-modal-body h3,
+  .job-modal-body h4 {
+    color: #F8FAFC;
+    font-weight: 600;
+    margin: 1.1rem 0 0.6rem;
+  }
+  .job-modal-body,
+  .job-modal-body * {
+    color: #FFFFFF !important;
+    line-height: 1.65;
+  }
+  .job-modal-body ul,
+  .job-modal-body ol {
+    padding-left: 1.25rem;
+    margin: 0.6rem 0 1rem;
+  }
+  .job-modal-body a {
+    color: #A5B4FC;
+    text-decoration: underline;
+  }
+  .job-modal-body * {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('job-modal');
+    const modalTitle = document.getElementById('job-modal-title');
+    const modalBody = document.getElementById('job-modal-body');
+    const openButtons = document.querySelectorAll('[data-modal-open]');
+    const closeButtons = document.querySelectorAll('[data-modal-close]');
+
+    function openModal(button) {
+      const card = button.closest('.card-elevated');
+      const description = card ? card.querySelector('[data-job-description]') : null;
+      modalTitle.textContent = button.getAttribute('data-job-title') || 'Job Details';
+      modalBody.innerHTML = description ? description.innerHTML : '<p>No details available.</p>';
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+      modalBody.innerHTML = '';
+      document.body.style.overflow = '';
+    }
+
+    openButtons.forEach((button) => {
+      button.addEventListener('click', function () { openModal(button); });
+    });
+
+    closeButtons.forEach((button) => {
+      button.addEventListener('click', closeModal);
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeModal();
+      }
+    });
+  });
+</script>
 {% endblock %}

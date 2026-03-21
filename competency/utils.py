@@ -5,36 +5,99 @@ from django.conf import settings
 from .models import Question
 
 
-def generate_questions_for_job(job_title, num_questions=6):
-    """Generate competency questions using AI and store them in the database."""
+def extract_skills_from_text(text):
+    """Extract a concise list of key skills from a long job description or text."""
     genai.configure(api_key=settings.GEMINI_API_KEY)
+    try:
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        prompt = f"Extract a clean, comma-separated list of the 1 to 3 most important core technical or professional skills from this text: '{text}'. Respond ONLY with the skills separated by commas, no other text."
+        response = model.generate_content(prompt)
+        skills = response.text.strip().split(',')
+        return [s.strip() for s in skills if s.strip()]
+    except Exception:
+        # Fallback to the whole text if it fails
+        return [text.strip()[:50]]
 
-    prompt = f"""
-You are an expert technical interviewer. Generate exactly {num_questions} subjective competency questions for the job role: '{job_title}'.
+def generate_questions_for_job(job_title, num_questions=5):
+        """Generate a mix of subjective and MCQ competency questions using AI."""
+        genai.configure(api_key=settings.GEMINI_API_KEY)
 
-Each question should:
-- Test relevant skills for this role
-- Be clear and specific
-- Have a difficulty level (easy, medium, or hard)
+        prompt = f"""
+You are an expert technical interviewer. Generate exactly {num_questions} competency questions for the job role: '{job_title}'.
 
-IMPORTANT: Follow this EXACT format for each question:
-1. [Question text here] - easy
-2. [Question text here] - medium
-3. [Question text here] - hard
+Requirements:
+- Include 3 subjective questions and 2 MCQs.
+- Include a difficulty level (easy, medium, or hard) for every question.
+- MCQs must include 4 options and exactly one correct answer.
 
-Generate 2 easy, 2 medium, and 2 hard questions.
-Respond ONLY with the numbered questions, no additional text.
+Return ONLY a valid JSON array in this exact schema:
+[
+    {{
+        "type": "subjective",
+        "question": "...",
+        "difficulty": "easy"
+    }},
+    {{
+        "type": "mcq",
+        "question": "...",
+        "difficulty": "medium",
+        "options": ["A", "B", "C", "D"],
+        "answer": "B"
+    }}
+]
+No markdown. No commentary.
 """
 
-    model = genai.GenerativeModel(settings.GEMINI_MODEL)
-    response = model.generate_content(prompt)
-    
-    return response.text.strip()
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        response = model.generate_content(prompt)
+        return response.text.strip()
 
 
 def save_generated_questions(raw_response, job_role):
     """Parse AI response and save questions to database."""
-    question_lines = raw_response.strip().split('\n')
+    raw_text = raw_response.strip()
+    try:
+        parsed = json.loads(raw_text)
+    except Exception:
+        parsed = None
+
+    if isinstance(parsed, list):
+        saved_count = 0
+        for item in parsed:
+            text = (item.get('question') or item.get('text') or '').strip()
+            if not text:
+                continue
+
+            difficulty = str(item.get('difficulty', 'medium')).lower()
+            if difficulty not in {'easy', 'medium', 'hard'}:
+                difficulty = 'medium'
+
+            options = item.get('options') or []
+            if isinstance(options, list):
+                options = [str(opt).strip() for opt in options if str(opt).strip()]
+            else:
+                options = []
+
+            correct_answer = (item.get('answer') or item.get('correct_answer') or '').strip()
+            if options and correct_answer and correct_answer not in options:
+                # Try to map answer like "A" to its option
+                if len(correct_answer) == 1:
+                    idx = ord(correct_answer.upper()) - ord('A')
+                    if 0 <= idx < len(options):
+                        correct_answer = options[idx]
+
+            if not Question.objects.filter(job_role=job_role, text=text).exists():
+                Question.objects.create(
+                    job_role=job_role,
+                    text=text,
+                    difficulty=difficulty,
+                    options=options,
+                    correct_answer=correct_answer or None,
+                )
+                saved_count += 1
+        return saved_count
+
+    question_lines = raw_text.split('\n')
     saved_count = 0
     
     for line in question_lines:

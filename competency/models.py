@@ -17,6 +17,7 @@ class Question(models.Model):
     job_role = models.CharField(max_length=100)
     text = models.TextField()
     difficulty = models.CharField(max_length=20, choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')])
+    options = models.JSONField(default=list, blank=True)
     correct_answer = models.TextField(blank=True, null=True)  # Optional if MCQs
     created_at = models.DateTimeField(auto_now_add=True)
 

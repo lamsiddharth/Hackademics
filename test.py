@@ -1,41 +1,19 @@
-import http.client
-import json
+import os
+import sys
+import django
 
-def fetch_jobs(keywords, location):
-    # Jooble API Host and API Key
-    host = 'jooble.org'
-    key = '1d0939bd-d781-471a-85c9-4a75cb8b1882'
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
 
-    # Establish HTTPS connection
-    connection = http.client.HTTPSConnection(host)
+from competency.utils import generate_questions_for_job, save_generated_questions
 
-    # Request headers
-    headers = {"Content-type": "application/json"}
-
-    # JSON query body
-    body = json.dumps({
-        "keywords": keywords,
-        "location": location
-    })
-
-    # Send POST request to Jooble API
-    connection.request('POST', f'/api/{key}', body, headers)
-
-    # Get the response
-    response = connection.getresponse()
-    print("Status:", response.status, response.reason)
-
-    # Parse the response data
-    data = response.read().decode()
-    parsed_data = json.loads(data)
-
-    # Extract array of jobs
-    job_list = parsed_data.get("jobs", [])  # Returns an empty list if 'jobs' key is not present
-
-    return job_list
-
-# Example usage
-jobs = fetch_jobs("english teacher", "India")
-for idx, job in enumerate(jobs, 1):
-    print(f"\nJob {idx}:")
-    print(json.dumps(job, indent=2))
+try:
+    print("Generating...")
+    raw_output = generate_questions_for_job("data-scientist")
+    print(f"Raw Output: {raw_output}")
+    print("Saving...")
+    saved_count = save_generated_questions(raw_output, "data-scientist")
+    print(f"Saved: {saved_count}")
+except Exception as e:
+    import traceback
+    traceback.print_exc()

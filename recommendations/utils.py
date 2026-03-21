@@ -1,5 +1,6 @@
 import google.generativeai as genai
 from django.conf import settings
+import requests
 
 
 def generate_learning_roadmap(skills, projects, experience, target_job):
@@ -93,4 +94,32 @@ def fetch_jobs(keywords, location):
         return []
     finally:
         connection.close()
+
+
+def _normalize_remotive_jobs(jobs):
+    normalized = []
+    for job in jobs:
+        normalized.append({
+            "title": job.get("title"),
+            "company": job.get("company_name"),
+            "location": job.get("candidate_required_location"),
+            "type": job.get("job_type"),
+            "snippet": job.get("description"),
+            "link": job.get("url"),
+            "source": "Remotive",
+        })
+    return normalized
+
+
+def fetch_jobs_remotive(query, limit=10):
+    if not query:
+        return []
+
+    api_url = f"https://remotive.com/api/remote-jobs?search={query}&limit={limit}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(api_url, headers=headers, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    jobs = data.get("jobs", [])
+    return _normalize_remotive_jobs(jobs)
 

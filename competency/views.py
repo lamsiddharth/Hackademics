@@ -57,16 +57,25 @@ def question_view(request, session_id, question_id):
 
     if request.method == 'POST':
         answer = request.POST.get('answer')
-        # Just save the answer - evaluation happens at the end
+        is_correct = False
+        if question.options:
+            correct = (question.correct_answer or '').strip()
+            is_correct = correct and answer and answer.strip().lower() == correct.strip().lower()
+
         Answer.objects.create(
             session=session,
             question=question,
             selected_answer=answer,
-            is_correct=False  # Will be updated after batch evaluation
+            is_correct=is_correct
         )
 
         # Fetch next unanswered question
         answered_ids = Answer.objects.filter(session=session).values_list('question_id', flat=True)
+        
+        # Limit to 5 questions maximum per test session
+        if len(answered_ids) >= 5:
+            return redirect('test_result', session_id=session.id)
+            
         next_question = Question.objects.filter(job_role=session.job_role).exclude(id__in=answered_ids).order_by('?').first()
 
         if next_question:
@@ -90,18 +99,42 @@ def test_result(request, session_id):
     # Batch evaluate all answers using AI if not already evaluated
     evaluation_failed = False
     if not session.completed:
-        from .utils import evaluate_all_answers
+        from .utils import evaluate_all_answers, extract_skills_from_text
         try:
-            scores = evaluate_all_answers(answers)
-            if not scores:
+            subjective_answers = [a for a in answers if not a.question.options]
+            scores = evaluate_all_answers(subjective_answers)
+            if subjective_answers and not scores:
                 evaluation_failed = True
             else:
-                # Update each answer with its score
-                for answer in answers:
+                try:
+                    profile = request.user.userprofile
+                except Exception:
+                    profile = None
+                    
+                # Extract specific skills from the job role / test (so we don't dump a whole paragraph)
+                test_skills = extract_skills_from_text(session.job_role)
+                
+                # Update each subjective answer with its score
+                for answer in subjective_answers:
                     if answer.id in scores:
                         score = scores[answer.id]
                         answer.is_correct = score >= 0.5
                         answer.save()
+                        
+                        # Add skill to user's profile if answer is correct
+                        if answer.is_correct and profile and test_skills:
+                            current_skills = [s.strip() for s in profile.skills.split(',') if s.strip()] if profile.skills else []
+                            
+                            for extracted_skill in test_skills:
+                                if extracted_skill.lower() not in [s.lower() for s in current_skills]:
+                                    current_skills.append(extracted_skill)
+                                    
+                                if isinstance(profile.extracted_skills, list):
+                                    if extracted_skill.lower() not in [s.lower() for s in profile.extracted_skills]:
+                                        profile.extracted_skills.append(extracted_skill)
+                                        
+                            profile.skills = ', '.join(current_skills)
+                            profile.save()
         except Exception:
             evaluation_failed = True
     

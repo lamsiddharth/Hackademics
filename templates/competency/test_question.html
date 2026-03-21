@@ -25,11 +25,25 @@
   <div class="card p-6">
     <form method="post" class="space-y-5">
       {% csrf_token %}
-      <div>
-        <label for="answer" class="label">Your Answer</label>
-        <input type="text" name="answer" id="answer" required
-               placeholder="Type your answer here...">
-      </div>
+      {% if question.options %}
+        <div>
+          <label class="label">Choose One</label>
+          <div class="space-y-3">
+            {% for opt in question.options %}
+              <label class="flex items-center gap-3 p-3 rounded-lg border border-surface-600/60 bg-surface-800/60 hover:border-brand-500/50 cursor-pointer">
+                <input type="radio" name="answer" value="{{ opt }}" class="text-brand-500" required>
+                <span class="text-sm text-surface-100">{{ opt }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div>
+          <label for="answer" class="label">Your Answer</label>
+          <input type="text" name="answer" id="answer" required
+                 placeholder="Type your answer here...">
+        </div>
+      {% endif %}
       <div class="flex items-center justify-end">
         <button type="submit" class="btn-primary text-sm">
           Next Question
