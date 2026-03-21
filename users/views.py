@@ -6,10 +6,11 @@ from django.contrib.auth.decorators import login_required
 from .models import UserProfile, ActivityLog
 from .forms import UserProfileForm
 from competency.models import CompetencyTestSession, Answer
-from recommendations.models import SavedJob, SkillGapAnalysis
+from recommendations.models import SavedJob, SkillGapAnalysis, Roadmap1
 from resume_builder.models import resume
 from django.db.models import Avg, Count, Case, When, FloatField
 from django.db.models.functions import Cast
+from urllib.parse import unquote_plus
 
 
 def register_view(request):
@@ -67,6 +68,7 @@ def dashboard_view(request):
     resume_count = resume.objects.filter(user=request.user).count()
     test_count = CompetencyTestSession.objects.filter(user=request.user, completed=True).count()
     saved_jobs_count = SavedJob.objects.filter(user=request.user).count()
+    roadmap_count = Roadmap1.objects.filter(user=request.user).count()
 
     # Average test score
     avg_score = CompetencyTestSession.objects.filter(
@@ -76,6 +78,10 @@ def dashboard_view(request):
 
     # Recent activity
     recent_activity = ActivityLog.objects.filter(user=request.user)[:5]
+
+    roadmaps = Roadmap1.objects.filter(user=request.user).order_by('-created_at')
+    for rm in roadmaps:
+        rm.display_title = unquote_plus(rm.title).strip() if rm.title else rm.title
 
     # Skills count
     skills_count = 0
@@ -91,6 +97,8 @@ def dashboard_view(request):
         'avg_score': avg_score,
         'recent_activity': recent_activity,
         'skills_count': skills_count,
+        'roadmap_count': roadmap_count,
+        'roadmaps': roadmaps,
     }
     return render(request, 'users/dashboard.html', context)
 

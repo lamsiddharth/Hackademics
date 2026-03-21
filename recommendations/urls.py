@@ -4,6 +4,8 @@ from .views import *
 urlpatterns = [
      path('extract-skills/', extract_skills_view, name='extract_skills'),
      path('match-live-jobs/', live_job_match_view, name='match_live_jobs'),
+     path('roadmap/id/<int:pk>/', create_roadmap, name='create_roadmap_by_id'),
+     path('roadmap/id/<int:pk>/delete/', delete_roadmap, name='delete_roadmap'),
      path('roadmap/<str:job_title>/', create_roadmap, name='create_roadmap'),
      path('targetjob/', target_job_view, name='target_job'),
      path('job-recommendation/', job_recommendation_view, name='job_recommendation'),

@@ -10,6 +10,35 @@
     <p class="text-surface-400 text-sm mt-1">Personalized learning path based on your profile</p>
   </div>
 
+  {% if roadmaps %}
+  <div class="card p-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="section-title">Earlier Roadmaps</h2>
+      <a href="{% url 'target_job' %}" class="text-xs text-brand-400 hover:text-brand-300">Create new</a>
+    </div>
+    <div class="space-y-2">
+      {% for rm in roadmaps %}
+        <div class="flex items-center justify-between p-3 rounded-lg border border-surface-600/50 bg-surface-800/60 hover:border-brand-500/50 transition-colors">
+          <a href="{% url 'create_roadmap_by_id' pk=rm.id %}" class="flex-1">
+            <p class="text-sm text-surface-100">
+              {{ rm.display_title|default:rm.title }}{% if current_title and rm.title == current_title %} <span class="text-xs text-amber-400">(current)</span>{% endif %}
+            </p>
+            <p class="text-xs text-surface-500">{{ rm.created_at|date:"M d, Y" }}</p>
+          </a>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-surface-400">Open</span>
+            <form method="post" action="{% url 'delete_roadmap' pk=rm.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <button type="submit" title="Delete" class="text-sm text-surface-500 hover:text-red-400 transition-colors">🗑️</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   {% if error %}
   <!-- Error State -->
   <div class="card p-8 text-center border-l-2 border-l-amber-500">

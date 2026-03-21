@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect
 from django.conf import settings
+from urllib.parse import unquote_plus
+from django.urls import reverse
 import requests
 import json
 import http.client
@@ -109,13 +111,42 @@ def parse_roadmap_with_gemini(roadmap_text: str):
     except Exception as e:
         return [{"step": f"Error parsing roadmap: {str(e)}", "completed": False}]
 
+
+def _normalize_roadmap_title(title: str) -> str:
+    if not title:
+        return ''
+    return unquote_plus(title).strip()
+
+
 @login_required
-def create_roadmap(request, job_title):
+def delete_roadmap(request, pk):
+    from .models import Roadmap1
+    if request.method != 'POST':
+        return redirect('target_job')
+    Roadmap1.objects.filter(user=request.user, pk=pk).delete()
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('target_job')
+    return redirect(next_url)
+
+@login_required
+def create_roadmap(request, job_title=None, pk=None):
     from .models import Roadmap1
     from django.utils.safestring import mark_safe
     import re
     
-    roadmap_obj = Roadmap1.objects.filter(user=request.user, title=job_title).order_by('-created_at').first()
+    recent_roadmaps = Roadmap1.objects.filter(user=request.user).order_by('-created_at')[:8]
+    
+    roadmap_obj = None
+    normalized_title = _normalize_roadmap_title(job_title) if job_title else ''
+    if pk:
+        roadmap_obj = Roadmap1.objects.filter(user=request.user, pk=pk).first()
+        if roadmap_obj:
+            decoded_title = _normalize_roadmap_title(roadmap_obj.title)
+            if decoded_title and decoded_title != roadmap_obj.title:
+                roadmap_obj.title = decoded_title
+                roadmap_obj.save(update_fields=['title'])
+            normalized_title = roadmap_obj.title
+    if not roadmap_obj and normalized_title:
+        roadmap_obj = Roadmap1.objects.filter(user=request.user, title__iexact=normalized_title).order_by('-created_at').first()
 
     if request.method == 'POST':
         if not roadmap_obj:
@@ -149,12 +180,20 @@ def create_roadmap(request, job_title):
                 
         roadmap_obj.steps = steps
         roadmap_obj.save()
-        return redirect('create_roadmap', job_title=job_title)
+        if pk:
+            return redirect('create_roadmap_by_id', pk=pk)
+        return redirect('create_roadmap', job_title=normalized_title)
 
     if not roadmap_obj:
         latest_resume = resume.objects.filter(user=request.user).order_by('-created_at').first()
         if not latest_resume:
-            return render(request, 'recommendations/roadmap.html', {'steps': [], 'response': 'No resume found. Please generate a resume first.', 'error': 'No resume found.'})
+            return render(request, 'recommendations/roadmap.html', {
+                'steps': [],
+                'response': 'No resume found. Please generate a resume first.',
+                'error': 'No resume found.',
+                'roadmaps': recent_roadmaps,
+                'current_title': job_title,
+            })
 
         skills = latest_resume.skills
         projects = latest_resume.projects
@@ -162,11 +201,17 @@ def create_roadmap(request, job_title):
 
         try:
             from .utils import generate_learning_roadmap
-            response = generate_learning_roadmap(skills, projects, experience, job_title)
+            response = generate_learning_roadmap(skills, projects, experience, normalized_title)
             steps = parse_roadmap_with_gemini(response)
-            roadmap_obj = Roadmap1.objects.create(user=request.user, title=job_title, raw_response=response, steps=steps)
+            roadmap_obj = Roadmap1.objects.create(user=request.user, title=normalized_title, raw_response=response, steps=steps)
         except Exception as e:
-            return render(request, 'recommendations/roadmap.html', {'steps': [], 'response': '', 'error': f'An unexpected error occurred: {str(e)}'})
+            return render(request, 'recommendations/roadmap.html', {
+                'steps': [],
+                'response': '',
+                'error': f'An unexpected error occurred: {str(e)}',
+                'roadmaps': recent_roadmaps,
+                'current_title': job_title,
+            })
 
     def md2html(text):
         text = str(text).replace('\n', '<br>')
@@ -177,14 +222,19 @@ def create_roadmap(request, job_title):
         
     return render(request, 'recommendations/roadmap.html', {
         'steps': roadmap_obj.steps,
-        'response': mark_safe(md2html(roadmap_obj.raw_response))
+        'response': mark_safe(md2html(roadmap_obj.raw_response)),
+        'roadmaps': recent_roadmaps,
+        'current_title': normalized_title,
     })
 
 
 @login_required
 def target_job_view(request):
-    
-    return render(request, 'recommendations/targetjob.html')
+    from .models import Roadmap1
+    recent_roadmaps = Roadmap1.objects.filter(user=request.user).order_by('-created_at')[:8]
+    for rm in recent_roadmaps:
+        rm.display_title = _normalize_roadmap_title(rm.title) or rm.title
+    return render(request, 'recommendations/targetjob.html', {'roadmaps': recent_roadmaps})
     
 @login_required
 def job_recommendation_view(request):
