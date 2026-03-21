@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- AI Loading Overlay for Resume Generation -->
+<div id="resume-gen-loading" class="hidden fixed inset-0 z-50 bg-surface-900/80 backdrop-blur-sm flex items-center justify-center">
+  <div class="text-center">
+    <div class="w-16 h-16 mx-auto mb-4 relative">
+      <div class="absolute inset-0 rounded-full border-4 border-brand-500/20"></div>
+      <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-brand-400 animate-spin"></div>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <svg class="w-6 h-6 text-brand-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+        </svg>
+      </div>
+    </div>
+    <p class="text-surface-200 font-semibold text-lg">Generating Your Resume</p>
+    <p class="text-surface-400 text-sm mt-1">AI is reading your profile and crafting a professional resume. This takes ~10 seconds…</p>
+  </div>
+</div>
+
+<div class="animate-slide-up">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Your Resumes</h1>
+      <p class="text-surface-400 text-sm mt-1">Manage, edit, and download your AI-generated resumes</p>
+    </div>
+    <button onclick="startResumeGen()" class="btn-primary text-sm">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Generate New Resume
+    </button>
+  </div>
+
+  {% if allresume %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {% for r in allresume %}
+        <div class="card-elevated p-6 group hover:border-brand-500/50 transition-all duration-300">
+          <!-- Icon + Title -->
+          <div class="flex items-start gap-4 mb-4">
+            <div class="w-12 h-12 bg-brand-500/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-brand-500/20 transition-colors">
+              <svg class="w-6 h-6 text-brand-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-semibold text-surface-50 truncate">{{ r.full_name }}</h3>
+              <p class="text-xs text-surface-500 mt-0.5">
+                {% if r.template_used == 1 %}Professional{% elif r.template_used == 2 %}Creative{% else %}Minimalist{% endif %}
+                &bull; {{ r.created_at|date:"M d, Y" }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Summary preview -->
+          {% if r.summary %}
+          <p class="text-xs text-surface-400 line-clamp-2 mb-4">{{ r.summary|truncatewords:25 }}</p>
+          {% endif %}
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2 mt-auto">
+            <a href="{% url 'view-resume' r.id %}" class="btn-primary text-xs flex-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+              View
+            </a>
+            <a href="{% url 'edit_resume' r.id %}" class="btn-secondary text-xs px-3 py-2.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+              </svg>
+            </a>
+            <a href="{% url 'download_resume' r.id %}" class="btn-secondary text-xs px-3 py-2.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </a>
+            <a href="{% url 'delete_resume' r.id %}" class="btn-danger text-xs px-3 py-2.5" onclick="return confirm('Delete this resume?')">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card p-16 text-center">
+      <svg class="w-16 h-16 text-surface-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12H9.75m3 0H9.75m0 0V15m0 2.25V15m0 0h3.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      </svg>
+      <h3 class="text-lg font-semibold text-surface-300 mb-1">No resumes yet</h3>
+      <p class="text-sm text-surface-500 mb-6">Generate your first AI-enhanced resume to get started</p>
+    <a href="{% url 'generate_resume' %}" onclick="startResumeGen(); return false;" class="btn-primary text-sm">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+        </svg>
+        Generate Resume
+      </a>
+    </div>
+  {% endif %}
+</div>
+<script>
+  function startResumeGen() {
+    document.getElementById('resume-gen-loading').classList.remove('hidden');
+    window.location.href = "{% url 'generate_resume' %}";
+  }
+</script>
+{% endblock %}
+
+

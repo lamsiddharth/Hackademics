@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto animate-slide-up">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Completed</span>
+      <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
+    </div>
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Test Results</h1>
+  </div>
+
+  <!-- Evaluation Failed Warning -->
+  {% if evaluation_failed %}
+  <div class="card p-4 mb-6 border-l-2 border-l-amber-500 flex items-start gap-3">
+    <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+    <div>
+      <p class="text-sm font-semibold text-amber-400">AI Evaluation Unavailable</p>
+      <p class="text-xs text-surface-400 mt-0.5">The AI scoring service was temporarily unavailable. Your answers were saved but the score shown may be inaccurate. Try retaking the test to get a proper evaluation.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Score Cards -->
+  <div class="grid grid-cols-2 gap-4 mb-8">
+    <div class="stat-card">
+      <span class="stat-label">Questions Answered</span>
+      <span class="stat-value">{{ answers|length }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Score</span>
+      <span class="stat-value text-brand-400">{{ session.score|default:'—' }}<span class="text-lg text-surface-400">%</span></span>
+    </div>
+  </div>
+
+  <!-- Question-wise Breakdown -->
+  <div class="mb-6">
+    <h2 class="section-title mb-4">Question-wise Summary</h2>
+    <div class="space-y-3">
+      {% for a in answers %}
+        <div class="card p-5 border-l-2 {% if a.is_correct %}border-l-emerald-500{% else %}border-l-red-500{% endif %}">
+          <p class="text-surface-100 text-sm font-medium mb-3">{{ a.question.text }}</p>
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-surface-400">
+              Your answer: <span class="text-surface-200">{{ a.selected_answer }}</span>
+            </p>
+            {% if a.is_correct %}
+              <span class="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                Correct
+              </span>
+            {% else %}
+              <span class="badge bg-red-500/10 text-red-400 border border-red-500/20">
+                <svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+                Incorrect
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-3">
+    <a href="{% url 'dashboard' %}" class="btn-secondary text-sm">Back to Dashboard</a>
+    <a href="{% url 'history_test' %}" class="btn-ghost text-sm">View All History</a>
+  </div>
+</div>
+{% endblock %}

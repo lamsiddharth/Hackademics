@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto animate-slide-up">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge bg-amber-500/10 text-amber-400 border border-amber-500/20">AI Generated</span>
+    </div>
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Your Career Roadmap</h1>
+    <p class="text-surface-400 text-sm mt-1">Personalized learning path based on your profile</p>
+  </div>
+
+  {% if error %}
+  <!-- Error State -->
+  <div class="card p-8 text-center border-l-2 border-l-amber-500">
+    <div class="flex flex-col items-center">
+      <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-surface-200 mb-2">Unable to Generate Roadmap</h3>
+      <p class="text-sm text-surface-400 max-w-md mb-6">{{ error }}</p>
+      <div class="flex items-center gap-3">
+        <a href="{% url 'dashboard' %}" class="btn-secondary text-sm">Back to Dashboard</a>
+        <a href="{% url 'target_job' %}" class="btn-primary text-sm">Try Again</a>
+      </div>
+    </div>
+  </div>
+  {% else %}
+
+  <!-- AI Response -->
+  <div class="card-elevated p-6 mb-8">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="w-7 h-7 bg-gradient-to-br from-brand-400 to-brand-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+        </svg>
+      </div>
+      <h2 class="section-title pt-0.5">AI Analysis</h2>
+    </div>
+    <div class="text-sm text-surface-300 leading-relaxed whitespace-pre-line pl-10">
+      {{ response }}
+    </div>
+  </div>
+
+  <!-- Step Checklist -->
+  <div class="card-elevated p-6">
+    <h2 class="section-title mb-5">Action Steps</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="space-y-3">
+        {% for step in steps %}
+          <label for="step_{{ forloop.counter }}" class="flex items-start gap-3 p-3 rounded-lg hover:bg-surface-700/50 transition-colors cursor-pointer group">
+            <input type="checkbox" name="step_{{ forloop.counter }}" id="step_{{ forloop.counter }}"
+                   class="mt-0.5 h-4 w-4 rounded border-surface-500 bg-surface-700 text-brand-500 focus:ring-brand-500/50 focus:ring-offset-0 cursor-pointer"
+                   {% if step.completed %}checked{% endif %}>
+            <span class="text-sm text-surface-200 group-hover:text-surface-50 transition-colors {% if step.completed %}line-through text-surface-500{% endif %}">
+              {{ step.step }}
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="mt-6 pt-4 border-t border-surface-600/50">
+        <button type="submit" class="btn-primary text-sm">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+          Save Progress
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+

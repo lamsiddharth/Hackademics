@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto animate-slide-up">
+  <!-- Header with progress context -->
+  <div class="mb-8">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge bg-brand-500/10 text-brand-400 border border-brand-500/20">{{ session.job_role }}</span>
+      <span class="text-surface-500 text-sm">Assessment</span>
+    </div>
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Answer the Question</h1>
+  </div>
+
+  <!-- Question Card -->
+  <div class="card-elevated p-8 mb-6">
+    <div class="flex items-start gap-4">
+      <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-brand-400 to-brand-600 rounded-lg flex items-center justify-center">
+        <span class="text-white text-sm font-bold">Q</span>
+      </div>
+      <p class="text-lg text-surface-100 leading-relaxed pt-0.5">{{ question.text }}</p>
+    </div>
+  </div>
+
+  <!-- Answer Form -->
+  <div class="card p-6">
+    <form method="post" class="space-y-5">
+      {% csrf_token %}
+      <div>
+        <label for="answer" class="label">Your Answer</label>
+        <input type="text" name="answer" id="answer" required
+               placeholder="Type your answer here...">
+      </div>
+      <div class="flex items-center justify-end">
+        <button type="submit" class="btn-primary text-sm">
+          Next Question
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

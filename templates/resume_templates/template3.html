@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="animate-slide-up">
+  <!-- Action Bar -->
+  <div class="flex items-center justify-between mb-4 max-w-4xl mx-auto">
+    <a href="{% url 'view' %}" class="btn-ghost text-sm">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+      All Resumes
+    </a>
+    <div class="flex items-center gap-2">
+      {% if resume_id %}
+      <a href="{% url 'edit_resume' resume_id %}" class="btn-secondary text-sm">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+        </svg>
+        Edit
+      </a>
+      <a href="{% url 'download_resume' resume_id %}" class="btn-primary text-sm">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+        Download DOCX
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Resume Document — Harvard-style Minimalist (Pure ATS) Template -->
+  <div id="resume-content" class="max-w-4xl mx-auto bg-white shadow-2xl shadow-black/40 rounded-xl overflow-hidden my-4"
+       style="font-family: 'Helvetica Neue', 'Segoe UI', Arial, sans-serif; color: #111827; padding: 40px 48px; box-sizing:border-box;">
+
+    <!-- Name Header -->
+    <header style="text-align:center; border-bottom:2px solid #111827; padding-bottom:14px; margin-bottom:18px;">
+      <h1 style="font-size:26px; font-weight:400; text-transform:uppercase; letter-spacing:0.25em; margin:0; color:#111827;">{{ full_name }}</h1>
+      <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:6px 20px; margin-top:8px; font-size:11px; color:#6B7280; text-transform:uppercase; letter-spacing:0.08em;">
+        {% if email %}<span>{{ email }}</span>{% endif %}
+        {% if phone_number %}<span style="color:#9CA3AF;">|</span><span>{{ phone_number }}</span>{% endif %}
+        {% if location %}<span style="color:#9CA3AF;">|</span><span>{{ location }}</span>{% endif %}
+      </div>
+    </header>
+
+    {% if summary %}
+    <section style="margin-bottom:20px;">
+      <p style="font-size:13px; color:#374151; line-height:1.7; border-left:2px solid #6B7280; padding-left:12px; font-style:italic;">{{ summary }}</p>
+    </section>
+    {% endif %}
+
+    {% if skills %}
+    <section style="margin-bottom:20px;">
+      <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#6B7280; border-bottom:1px solid #E5E7EB; padding-bottom:4px; margin-bottom:10px;">Skills</h2>
+      {% if skills.0.category %}
+        {% for cat in skills %}
+        <div style="margin-bottom:6px; font-size:13px; color:#374151;">
+          <strong>{{ cat.category }}:</strong> {{ cat.items|join:", " }}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px; color:#374151;">{{ skills }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if education %}
+    <section style="margin-bottom:20px;">
+      <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#6B7280; border-bottom:1px solid #E5E7EB; padding-bottom:4px; margin-bottom:10px;">Education</h2>
+      {% if education.0.institution %}
+        {% for edu in education %}
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+          <div>
+            <span style="font-size:13.5px; font-weight:700; color:#111827;">{{ edu.institution }}</span>
+            {% if edu.degree or edu.field %}
+            <span style="font-size:13px; color:#6B7280;"> · {{ edu.degree }}{% if edu.degree and edu.field %} in {% endif %}{{ edu.field }}</span>
+            {% endif %}
+          </div>
+          {% if edu.dates %}<span style="font-size:11px; color:#9CA3AF; font-style:italic;">{{ edu.dates }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px; white-space:pre-line; color:#374151;">{{ education }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if experience %}
+    <section style="margin-bottom:20px;">
+      <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#6B7280; border-bottom:1px solid #E5E7EB; padding-bottom:4px; margin-bottom:10px;">Experience</h2>
+      {% if experience.0.title %}
+        {% for exp in experience %}
+        <div style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline;">
+            <div>
+              <span style="font-size:14px; font-weight:700; color:#111827;">{{ exp.title }}</span>
+              {% if exp.company %}
+              <span style="font-size:13px; color:#6B7280;"> · {{ exp.company }}</span>
+              {% endif %}
+            </div>
+            {% if exp.dates %}
+            <span style="font-size:11px; color:#9CA3AF; font-style:italic; white-space:nowrap; margin-left:8px;">{{ exp.dates }}</span>
+            {% endif %}
+          </div>
+          {% if exp.bullets %}
+          <ul style="margin: 5px 0 0 20px; padding:0; list-style:disc;">
+            {% for bullet in exp.bullets %}
+            <li style="font-size:13.5px; color:#374151; margin-bottom:3px; line-height:1.6;">{{ bullet }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px; white-space:pre-line; color:#374151;">{{ experience }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if projects %}
+    <section style="margin-bottom:20px;">
+      <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#6B7280; border-bottom:1px solid #E5E7EB; padding-bottom:4px; margin-bottom:10px;">Projects</h2>
+      {% if projects.0.name %}
+        {% for proj in projects %}
+        <div style="margin-bottom:12px;">
+          <div>
+             <span style="font-size:14px; font-weight:700; color:#111827;">{{ proj.name }}</span>
+            {% if proj.tech %}<span style="font-size:11.5px; color:#6B7280; font-style:italic;"> · {{ proj.tech }}</span>{% endif %}
+          </div>
+          {% if proj.bullets %}
+          <ul style="margin:5px 0 0 20px; padding:0; list-style:disc;">
+            {% for bullet in proj.bullets %}
+            <li style="font-size:13.5px; color:#374151; margin-bottom:3px; line-height:1.6;">{{ bullet }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px; white-space:pre-line; color:#374151;">{{ projects }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if achievements %}
+    <section>
+      <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#6B7280; border-bottom:1px solid #E5E7EB; padding-bottom:4px; margin-bottom:10px;">Achievements &amp; Awards</h2>
+      {% if achievements.0 %}
+      <ul style="margin:0; padding-left:20px; list-style:disc;">
+        {% for ach in achievements %}
+        <li style="font-size:13.5px; color:#374151; margin-bottom:4px; line-height:1.6;">{{ ach }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <div style="font-size:12px; color:#374151;">{{ achievements }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

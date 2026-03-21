@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- AI Loading Overlay -->
+<div id="ai-loading" class="hidden fixed inset-0 z-50 bg-surface-900/80 backdrop-blur-sm flex items-center justify-center">
+  <div class="text-center">
+    <div class="w-16 h-16 mx-auto mb-4 relative">
+      <div class="absolute inset-0 rounded-full border-4 border-orange-500/20"></div>
+      <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-400 animate-spin"></div>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <svg class="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+        </svg>
+      </div>
+    </div>
+    <p class="text-surface-200 font-semibold text-lg">Analyzing Skill Gap</p>
+    <p class="text-surface-400 text-sm mt-1">AI is comparing your skills against industry requirements…</p>
+  </div>
+</div>
+<div class="max-w-4xl mx-auto animate-slide-up">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Skill Gap Analysis</h1>
+    <p class="text-surface-400 text-sm mt-1">AI-powered analysis of your skills against a target role</p>
+  </div>
+
+  {% if error %}
+  <div class="card border border-red-500/30 bg-red-500/5 p-4 mb-6">
+    <div class="flex items-center gap-3">
+      <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+      <p class="text-sm text-red-300">{{ error }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Analysis Form -->
+  <div class="card p-6 mb-8">
+    <h2 class="text-lg font-semibold text-surface-100 mb-4">Analyze Your Skills</h2>
+    <form method="post" action="{% url 'skill_gap' %}" id="skill-gap-form" class="flex flex-col sm:flex-row gap-3">
+      {% csrf_token %}
+      <input type="text" name="target_role" required placeholder="Enter target role (e.g. Senior Data Scientist)"
+             class="flex-1 px-4 py-2.5 bg-surface-800 border border-surface-600 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors">
+      <button type="submit" id="skill-gap-btn" class="btn-primary whitespace-nowrap">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" /></svg>
+        Run Analysis
+      </button>
+    </form>
+  </div>
+
+  {% if latest %}
+  <!-- Latest Analysis Result -->
+  <div class="mb-8">
+    <h2 class="text-lg font-semibold text-surface-100 mb-4">Analysis: {{ latest.target_role }}</h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <!-- Match Score -->
+      <div class="card p-6 flex flex-col items-center justify-center lg:row-span-2">
+        <h3 class="text-sm font-medium text-surface-400 uppercase tracking-wider mb-4">Match Score</h3>
+        <div class="relative w-32 h-32">
+          <svg class="w-32 h-32 -rotate-90" viewBox="0 0 36 36">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none" stroke="rgb(51 65 85)" stroke-width="2.5" />
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="{% if latest.match_percentage >= 70 %}rgb(16 185 129){% elif latest.match_percentage >= 40 %}rgb(245 158 11){% else %}rgb(239 68 68){% endif %}"
+                  stroke-width="2.5"
+                  stroke-dasharray="{{ latest.match_percentage }}, 100"
+                  stroke-linecap="round" />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-3xl font-bold text-surface-100">{{ latest.match_percentage }}%</span>
+            <span class="text-xs text-surface-500">match</span>
+          </div>
+        </div>
+        <p class="text-sm text-surface-400 mt-3 text-center">
+          {% if latest.match_percentage >= 70 %}Strong match — you're well-positioned!
+          {% elif latest.match_percentage >= 40 %}Good foundation — some skills to develop
+          {% else %}Growth opportunity — focused learning recommended{% endif %}
+        </p>
+      </div>
+
+      <!-- Current Skills -->
+      <div class="card p-5 lg:col-span-2">
+        <h3 class="text-sm font-medium text-emerald-400 uppercase tracking-wider mb-3">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+            Skills You Have ({{ latest.current_skills|length }})
+          </span>
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {% for skill in latest.current_skills %}
+          <span class="inline-flex px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{{ skill }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Missing Skills -->
+      <div class="card p-5 lg:col-span-2">
+        <h3 class="text-sm font-medium text-amber-400 uppercase tracking-wider mb-3">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+            Skills to Develop ({{ latest.missing_skills|length }})
+          </span>
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {% for skill in latest.missing_skills %}
+          <span class="inline-flex px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">{{ skill }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations -->
+    {% if latest.recommendations %}
+    <div class="card p-6">
+      <h3 class="text-sm font-medium text-brand-400 uppercase tracking-wider mb-3">
+        <span class="flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" /></svg>
+          Recommendations
+        </span>
+      </h3>
+      <div class="text-sm text-surface-300 leading-relaxed whitespace-pre-line">{{ latest.recommendations }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Analysis History -->
+  {% if analyses and analyses|length > 1 %}
+  <div class="mb-6">
+    <h2 class="text-lg font-semibold text-surface-100 mb-4">Previous Analyses</h2>
+    <div class="space-y-2">
+      {% for analysis in analyses %}
+      {% if analysis.pk != latest.pk %}
+      <div class="card px-5 py-4 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-surface-200">{{ analysis.target_role }}</p>
+          <p class="text-xs text-surface-500">{{ analysis.created_at|timesince }} ago</p>
+        </div>
+        <span class="inline-flex px-2.5 py-1 rounded-md text-xs font-bold
+          {% if analysis.match_percentage >= 70 %}bg-emerald-500/10 text-emerald-400
+          {% elif analysis.match_percentage >= 40 %}bg-amber-500/10 text-amber-400
+          {% else %}bg-red-500/10 text-red-400{% endif %}">
+          {{ analysis.match_percentage }}%
+        </span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="mt-6">
+    <a href="{% url 'dashboard' %}" class="btn-ghost text-sm text-surface-400">&larr; Back to Dashboard</a>
+  </div>
+</div>
+<script>
+  document.getElementById('skill-gap-form').addEventListener('submit', function() {
+    document.getElementById('ai-loading').classList.remove('hidden');
+    document.getElementById('skill-gap-btn').disabled = true;
+  });
+</script>
+{% endblock %}

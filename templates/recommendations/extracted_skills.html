@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto animate-slide-up">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">AI Extracted</span>
+    </div>
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Your Skills</h1>
+    <p class="text-surface-400 text-sm mt-1">Skills identified from your profile data</p>
+  </div>
+
+  {% if skills %}
+    <div class="card-elevated p-6">
+      <div class="flex flex-wrap gap-2">
+        {% for skill in skills %}
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-500/10 text-brand-300 rounded-lg text-sm font-medium border border-brand-500/20">
+            <svg class="w-3.5 h-3.5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            {{ skill }}
+          </span>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="card p-12 text-center">
+      <svg class="w-12 h-12 text-surface-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+      </svg>
+      <h3 class="text-lg font-semibold text-surface-300 mb-1">No skills extracted</h3>
+      <p class="text-sm text-surface-500">Update your profile with more details and try again</p>
+    </div>
+  {% endif %}
+
+  <div class="mt-6">
+    <a href="{% url 'dashboard' %}" class="btn-secondary text-sm">Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

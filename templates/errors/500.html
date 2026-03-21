@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-[60vh] flex items-center justify-center animate-slide-up">
+  <div class="text-center max-w-md mx-auto px-6">
+    <div class="text-7xl font-black text-red-500 mb-2">500</div>
+    <h1 class="text-2xl font-bold text-surface-100 mb-2">Something Went Wrong</h1>
+    <p class="text-surface-400 text-sm mb-8">An unexpected error occurred. Our team has been notified. Please try again later.</p>
+    <a href="{% url 'dashboard' %}" class="btn-primary">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+      Go to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

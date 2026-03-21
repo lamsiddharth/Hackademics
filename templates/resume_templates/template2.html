@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="animate-slide-up">
+  <!-- Action Bar -->
+  <div class="flex items-center justify-between mb-4 max-w-4xl mx-auto">
+    <a href="{% url 'view' %}" class="btn-ghost text-sm">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+      All Resumes
+    </a>
+    <div class="flex items-center gap-2">
+      {% if resume_id %}
+      <a href="{% url 'edit_resume' resume_id %}" class="btn-secondary text-sm">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+        </svg>
+        Edit
+      </a>
+      <a href="{% url 'download_resume' resume_id %}" class="btn-primary text-sm">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+        Download DOCX
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Resume Document — Modern Blue Gradient Template -->
+  <div id="resume-content" class="max-w-4xl mx-auto bg-white shadow-2xl shadow-black/40 rounded-xl overflow-hidden my-4"
+       style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a;">
+
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%); padding: 36px 40px 28px; color:white;">
+      <h1 style="font-size:28px; font-weight:700; letter-spacing:-0.01em; margin:0;">{{ full_name }}</h1>
+      <div style="display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:10px; font-size:12px; color:#C7D2FE;">
+        {% if email %}<span>✉ {{ email }}</span>{% endif %}
+        {% if phone_number %}<span>✆ {{ phone_number }}</span>{% endif %}
+        {% if location %}<span>⌖ {{ location }}</span>{% endif %}
+      </div>
+      {% if summary %}
+      <p style="margin-top:14px; font-size:12px; color:#E0E7FF; line-height:1.65; max-width:680px;">{{ summary }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Body: 2/3 left + 1/3 right -->
+    <div style="display:flex; padding:32px 40px; gap:36px;">
+
+      <!-- Left: Experience & Projects -->
+      <div style="flex:2;">
+
+        {% if experience %}
+        <div style="margin-bottom:24px;">
+          <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#4F46E5; border-bottom:2px solid #E0E7FF; padding-bottom:5px; margin-bottom:12px;">Professional Experience</h2>
+          {% if experience.0.title %}
+            {% for exp in experience %}
+            <div style="margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <div>
+                  <span style="font-size:14.5px; font-weight:700; color:#1E293B;">{{ exp.title }}</span>
+                  {% if exp.company %}<span style="font-size:13px; color:#64748B;"> · {{ exp.company }}</span>{% endif %}
+                </div>
+                {% if exp.dates %}<span style="font-size:10px; color:#94A3B8; font-style:italic; white-space:nowrap; margin-left:8px;">{{ exp.dates }}</span>{% endif %}
+              </div>
+              {% if exp.bullets %}
+              <ul style="margin:6px 0 0 18px; padding:0; list-style:disc;">
+                {% for bullet in exp.bullets %}
+                <li style="font-size:13.5px; color:#334155; margin-bottom:4px; line-height:1.55;">{{ bullet }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="font-size:12px; white-space:pre-line; color:#334155;">{{ experience }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if projects %}
+        <div style="margin-bottom:24px;">
+          <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#4F46E5; border-bottom:2px solid #E0E7FF; padding-bottom:5px; margin-bottom:12px;">Projects</h2>
+          {% if projects.0.name %}
+            {% for proj in projects %}
+            <div style="margin-bottom:14px;">
+              <div>
+                <span style="font-size:14.5px; font-weight:700; color:#1E293B;">{{ proj.name }}</span>
+                {% if proj.tech %}<span style="font-size:11px; color:#4F46E5; font-style:italic;"> · {{ proj.tech }}</span>{% endif %}
+              </div>
+              {% if proj.bullets %}
+              <ul style="margin:5px 0 0 18px; padding:0; list-style:disc;">
+                {% for bullet in proj.bullets %}
+                <li style="font-size:13.5px; color:#334155; margin-bottom:3px; line-height:1.55;">{{ bullet }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="font-size:12px; white-space:pre-line; color:#334155;">{{ projects }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if education %}
+        <div>
+          <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#4F46E5; border-bottom:2px solid #E0E7FF; padding-bottom:5px; margin-bottom:12px;">Education</h2>
+          {% if education.0.institution %}
+            {% for edu in education %}
+            <div style="margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <span style="font-size:13.5px; font-weight:700; color:#1E293B;">{{ edu.institution }}</span>
+                {% if edu.dates %}<span style="font-size:10px; color:#94A3B8; font-style:italic;">{{ edu.dates }}</span>{% endif %}
+              </div>
+              {% if edu.degree or edu.field %}
+              <div style="font-size:12.5px; color:#475569; margin-top:2px;">{{ edu.degree }}{% if edu.degree and edu.field %} · {% endif %}{{ edu.field }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="font-size:12px; white-space:pre-line; color:#334155;">{{ education }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div><!-- /left -->
+
+      <!-- Right: Skills & Achievements -->
+      <div style="flex:1; min-width:0;">
+
+        {% if skills %}
+        <div style="margin-bottom:24px;">
+          <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#4F46E5; border-bottom:2px solid #E0E7FF; padding-bottom:5px; margin-bottom:12px;">Skills</h2>
+          {% if skills.0.category %}
+            {% for cat in skills %}
+            <div style="margin-bottom:10px;">
+              <div style="font-size:10px; font-weight:700; color:#4F46E5; margin-bottom:5px;">{{ cat.category }}</div>
+              <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                {% for item in cat.items %}
+                <span style="background:#EEF2FF; color:#3730A3; font-size:12px; padding:2px 8px; border-radius:4px; border:1px solid #C7D2FE;">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="font-size:12px; color:#334155;">{{ skills }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if achievements %}
+        <div>
+          <h2 style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#4F46E5; border-bottom:2px solid #E0E7FF; padding-bottom:5px; margin-bottom:12px;">Achievements</h2>
+          {% if achievements.0 %}
+          <ul style="margin:0; padding-left:16px; list-style:disc;">
+            {% for ach in achievements %}
+            <li style="font-size:13px; color:#334155; margin-bottom:6px; line-height:1.5;">{{ ach }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+            <div style="font-size:12px; color:#334155;">{{ achievements }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div><!-- /right -->
+    </div><!-- /body -->
+  </div>
+</div>
+{% endblock %}

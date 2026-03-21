@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="animate-slide-up">
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-surface-50 tracking-tight">Performance Analytics</h1>
+    <p class="text-surface-400 text-sm mt-1">Track your competency growth over time</p>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="stat-card">
+      <span class="stat-label">Total Tests</span>
+      <span class="stat-value">{{ sessions.count }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Correct Answers</span>
+      <span class="stat-value text-emerald-400">{{ total_correct }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Overall Accuracy</span>
+      <span class="stat-value text-brand-400">{{ overall_accuracy }}<span class="text-lg text-surface-400">%</span></span>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card-elevated p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="section-title">Progress Over Time</h2>
+      <span class="badge bg-surface-700 text-surface-300 border border-surface-600">All Sessions</span>
+    </div>
+    <div class="h-80">
+      <canvas id="progressChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('progressChart').getContext('2d');
+  
+  Chart.defaults.color = '#94A3B8';
+  Chart.defaults.borderColor = '#334155';
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [
+        {% for session in sessions %}
+          "{{ session.created_at|date:'M d' }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ],
+      datasets: [{
+        label: 'Correct Answers',
+        data: [
+          {% for session in sessions %}
+            {{ session.correct_answers }}{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        ],
+        borderColor: '#6366F1',
+        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#6366F1',
+        pointBorderColor: '#1E293B',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }, {
+        label: 'Total Questions',
+        data: [
+          {% for session in sessions %}
+            {{ session.total_questions }}{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        ],
+        borderColor: '#64748B',
+        borderDash: [5, 5],
+        backgroundColor: 'transparent',
+        pointBackgroundColor: '#64748B',
+        pointBorderColor: '#1E293B',
+        pointBorderWidth: 2,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'end',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            padding: 20,
+            font: { size: 12, weight: '500' }
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1E293B',
+          titleColor: '#F8FAFC',
+          bodyColor: '#CBD5E1',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 8,
+          displayColors: true,
+          usePointStyle: true,
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(51, 65, 85, 0.5)', drawBorder: false },
+          ticks: { padding: 8, font: { size: 11 } },
+          title: {
+            display: true,
+            text: 'Number of Questions',
+            font: { size: 12, weight: '500' },
+            color: '#64748B'
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { padding: 8, font: { size: 11 } }
+        }
+      },
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      }
+    }
+  });
+</script>
+{% endblock %}
