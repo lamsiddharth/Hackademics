@@ -133,7 +133,7 @@
     margin-bottom: 8px;
   }
 
-  input, select {
+  input, select, textarea {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -147,7 +147,9 @@
     appearance: none;
   }
 
-  input:focus, select:focus { border-color: var(--accent); }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+  .hidden { display: none; }
 
   .btn-start {
     width: 100%;
@@ -497,12 +499,42 @@
     </div>
 
     <div class="field">
+      <label>Prep Mode</label>
+      <select id="prep-mode" onchange="toggleProfileFields()">
+        <option value="interactive" selected>Interactive — profile-aware, live interview</option>
+        <option value="subjective">Subjective — classic 5-question flow</option>
+      </select>
+    </div>
+
+    <div class="field">
       <label>Difficulty</label>
       <select id="difficulty">
         <option value="easy">Easy — conceptual, broad questions</option>
         <option value="medium" selected>Medium — standard interview depth</option>
         <option value="hard">Hard — system design + deep dives</option>
       </select>
+    </div>
+
+    <div id="profile-fields">
+      <div class="field">
+        <label>Target Role</label>
+        <input type="text" id="target-role" placeholder="e.g. Backend Engineer">
+      </div>
+
+      <div class="field">
+        <label>Target Company</label>
+        <input type="text" id="target-company" placeholder="e.g. Stripe">
+      </div>
+
+      <div class="field">
+        <label>Tech Stack</label>
+        <input type="text" id="tech-stack" placeholder="e.g. Python, FastAPI, Postgres">
+      </div>
+
+      <div class="field">
+        <label>Current Profile</label>
+        <textarea id="current-profile" rows="3" placeholder="e.g. 2 years backend, fintech, REST APIs"></textarea>
+      </div>
     </div>
 
     <button class="btn-start" id="btn-start" onclick="startSession()">
@@ -546,7 +578,11 @@
     <div class="feedback-title">Interview Complete</div>
     <div class="feedback-meta" id="feedback-meta"></div>
     <div class="feedback-body" id="feedback-body">Loading feedback...</div>
-    <button class="btn-restart" onclick="location.reload()">Start New Session</button>
+    <div id="feedback-actions" style="display:flex;gap:12px;margin-top:32px;flex-wrap:wrap;">
+      <button class="btn-restart" onclick="location.reload()">Start New Session</button>
+      <button class="btn-restart" id="btn-generate-report" style="display:none;" onclick="retryReport()">Generate Report</button>
+      <button class="btn-restart" id="btn-view-history" onclick="window.location.href='/mock-interview/history/'">View History</button>
+    </div>
   </div>
 
 </div>
@@ -656,8 +692,16 @@ function setCaption(text, active) {
 // ─── Step 1: Django → get session_id + ws_url ────────────────────────────
 async function startSession() {
   const btn      = document.getElementById('btn-start');
-  const jobRole  = document.getElementById('job-role').value.trim() || 'Software Engineer';
+  const prepMode = document.getElementById('prep-mode').value;
+  const targetRole = document.getElementById('target-role').value.trim();
+  const targetCompany = document.getElementById('target-company').value.trim();
+  const techStack = document.getElementById('tech-stack').value.trim();
+  const currentProfile = document.getElementById('current-profile').value.trim();
+  let jobRole  = document.getElementById('job-role').value.trim();
   const diff     = document.getElementById('difficulty').value;
+
+  if (!jobRole && targetRole) jobRole = targetRole;
+  if (!jobRole) jobRole = 'Software Engineer';
 
   btn.disabled   = true;
   btn.textContent = 'Starting...';
@@ -669,7 +713,15 @@ async function startSession() {
         'Content-Type':  'application/json',
         'X-CSRFToken':   getCookie('csrftoken'),
       },
-      body: JSON.stringify({ job_role: jobRole, difficulty: diff }),
+      body: JSON.stringify({
+        job_role: jobRole,
+        difficulty: diff,
+        prep_mode: prepMode,
+        target_role: prepMode === 'interactive' ? targetRole : undefined,
+        target_company: prepMode === 'interactive' ? targetCompany : undefined,
+        tech_stack: prepMode === 'interactive' ? techStack : undefined,
+        current_profile: prepMode === 'interactive' ? currentProfile : undefined,
+      }),
     });
 
     if (!resp.ok) throw new Error(`Django returned ${resp.status}`);
@@ -688,6 +740,18 @@ async function startSession() {
     btn.textContent = 'Start Interview →';
   }
 }
+
+function toggleProfileFields() {
+  const prepMode = document.getElementById('prep-mode').value;
+  const fields = document.getElementById('profile-fields');
+  if (prepMode === 'interactive') {
+    fields.classList.remove('hidden');
+  } else {
+    fields.classList.add('hidden');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', toggleProfileFields);
 
 // ─── Step 2: FastAPI WebSocket ────────────────────────────────────────────
 function connectWebSocket(wsUrl) {
@@ -715,6 +779,7 @@ function connectWebSocket(wsUrl) {
   };
 
   ws.onmessage = (event) => {
+    console.log('[ws] message', event.data);
     // Binary = PCM audio from Kokoro
     if (event.data instanceof ArrayBuffer) {
       audioQueue.push(event.data);
@@ -723,6 +788,27 @@ function connectWebSocket(wsUrl) {
     }
 
     const msg = event.data;
+    if (typeof msg === 'string') {
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.type === 'assistant' || parsed.event === 'assistant') {
+            addTurn('assistant', parsed.content || parsed.text || '');
+            return;
+          }
+          if (parsed.type === 'transcript' || parsed.event === 'transcript') {
+            const transcript = parsed.content || parsed.text || '';
+            if (transcript) {
+              setCaption(transcript, true);
+              addTurn('user', transcript);
+              return;
+            }
+          }
+        }
+      } catch (_) {
+        // Not JSON, continue with string handling.
+      }
+    }
 
     if (msg === 'PONG') return;
 
@@ -752,6 +838,11 @@ function connectWebSocket(wsUrl) {
     
     if (msg.startsWith('ASSISTANT:')) {
       addTurn('assistant', msg.slice(10));
+      return;
+    }
+
+    if (typeof msg === 'string' && msg.trim()) {
+      addTurn('assistant', msg);
       return;
     }
   };
@@ -945,7 +1036,7 @@ async function pollForFeedback() {
   document.getElementById('feedback-panel').style.display  = 'block';
 
   let attempts = 0;
-  const max    = 20;  // poll up to 20 times (20 seconds)
+  const max    = 30;
 
   const poll = async () => {
     attempts++;
@@ -955,18 +1046,64 @@ async function pollForFeedback() {
 
       if (data.ready) {
         document.getElementById('feedback-meta').textContent =
-          `${data.job_role}  ·  ${data.difficulty}  ·  ${new Date(data.created_at).toLocaleString()}`;
-        document.getElementById('feedback-body').textContent = data.feedback;
+          `${data.job_role}  ·  ${data.difficulty}  ·  ${data.prep_mode}  ·  ${new Date(data.created_at).toLocaleString()}`;
+
+        if (data.has_feedback && data.feedback) {
+          document.getElementById('feedback-body').textContent = data.feedback;
+        } else {
+          // Transcript saved but feedback generation failed — auto-retry
+          document.getElementById('feedback-body').textContent =
+            'Interview transcript saved. Generating your report...';
+          triggerReportGeneration();
+        }
         return;
       }
     } catch (_) {}
 
     if (attempts < max) setTimeout(poll, 1500);
-    else document.getElementById('feedback-body').textContent =
-      'Feedback is taking longer than expected. Refresh to check again.';
+    else {
+      document.getElementById('feedback-body').textContent =
+        'Feedback is taking longer than expected. You can try generating the report manually.';
+      document.getElementById('btn-generate-report').style.display = 'inline-block';
+    }
   };
 
-  setTimeout(poll, 2000);  // initial delay for FastAPI → Django callback
+  setTimeout(poll, 2500);
+}
+
+// ─── Trigger report generation ────────────────────────────────────────
+async function triggerReportGeneration() {
+  if (!sessionId) return;
+
+  document.getElementById('feedback-body').textContent = 'Generating detailed report...';
+
+  try {
+    const resp = await fetch(`/mock-interview/report/${sessionId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+    });
+    const data = await resp.json();
+
+    if (resp.ok && data.feedback) {
+      document.getElementById('feedback-body').textContent = data.feedback;
+    } else {
+      document.getElementById('feedback-body').textContent =
+        'Report generation failed: ' + (data.error || 'Unknown error') + '\nYou can retry using the button below.';
+      document.getElementById('btn-generate-report').style.display = 'inline-block';
+    }
+  } catch (err) {
+    document.getElementById('feedback-body').textContent =
+      'Could not generate report. Check your connection and try again.';
+    document.getElementById('btn-generate-report').style.display = 'inline-block';
+  }
+}
+
+async function retryReport() {
+  document.getElementById('btn-generate-report').style.display = 'none';
+  await triggerReportGeneration();
 }
 </script>
 </body>

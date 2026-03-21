@@ -8,6 +8,10 @@ class InterviewSession(models.Model):
         ("medium", "Medium"),
         ("hard",   "Hard"),
     ]
+    PREP_MODE_CHOICES = [
+        ("subjective", "Subjective"),
+        ("interactive", "Interactive"),
+    ]
     STATUS_CHOICES = [
         ("pending",   "Pending"),     # created, not started
         ("active",    "Active"),      # WS open
@@ -18,6 +22,11 @@ class InterviewSession(models.Model):
     user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="interview_sessions")
     job_role    = models.CharField(max_length=200)
     difficulty  = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default="medium")
+    prep_mode   = models.CharField(max_length=20, choices=PREP_MODE_CHOICES, default="subjective")
+    target_role = models.CharField(max_length=200, null=True, blank=True)
+    target_company = models.CharField(max_length=200, null=True, blank=True)
+    tech_stack  = models.CharField(max_length=300, null=True, blank=True)
+    current_profile = models.TextField(null=True, blank=True)
     status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
 
     # Full conversation — written by FastAPI callback on session end

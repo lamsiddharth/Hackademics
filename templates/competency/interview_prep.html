@@ -6,6 +6,19 @@
     <p class="text-surface-400 text-sm mt-1">Generate AI-powered interview questions tailored to your target role</p>
   </div>
 
+  <div class="card p-4 mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <p class="text-sm font-medium text-surface-200">Choose Mode</p>
+        <p class="text-xs text-surface-500">Static keeps the 5-question flow. Interactive launches live audio.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a class="btn-primary" href="#static-mode">Static (5 Questions)</a>
+        <a class="btn-ghost text-sm" href="/mock-interview/">Interactive (Live Audio)</a>
+      </div>
+    </div>
+  </div>
+
   {% if error %}
   <div class="card border border-red-500/30 bg-red-500/5 p-4 mb-6">
     <div class="flex items-center gap-3">
@@ -25,7 +38,7 @@
   {% endif %}
 
   <!-- Generate Questions Form -->
-  <div class="card p-6 mb-8">
+  <div class="card p-6 mb-8" id="static-mode">
     <h2 class="text-lg font-semibold text-surface-100 mb-4">Generate Questions</h2>
     <form method="post" action="{% url 'interview_prep' %}" class="space-y-4">
       {% csrf_token %}
