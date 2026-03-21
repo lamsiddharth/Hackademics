@@ -8,6 +8,7 @@ urlpatterns = [
      path('roadmap/id/<int:pk>/delete/', delete_roadmap, name='delete_roadmap'),
      path('roadmap/<str:job_title>/', create_roadmap, name='create_roadmap'),
      path('targetjob/', target_job_view, name='target_job'),
+     path('my-roadmaps/', my_roadmaps_view, name='my_roadmaps'),
      path('job-recommendation/', job_recommendation_view, name='job_recommendation'),
      path('save-job/', save_job_view, name='save_job'),
      path('saved-jobs/', saved_jobs_view, name='saved_jobs'),

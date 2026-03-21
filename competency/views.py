@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required as _login_required
 from .utils import generate_questions_for_job, save_generated_questions
 from .models import Question
@@ -7,12 +8,16 @@ from .models import Question
 @_login_required
 def generate_test_questions(request):
     if request.method == 'POST':
-        job_role = request.POST.get('job_role')
+        job_role = request.POST.get('job_role', '').strip()
+        difficulty = request.POST.get('difficulty', 'medium').lower()
+        if difficulty not in ('easy', 'medium', 'hard'):
+            difficulty = 'medium'
         if job_role:
             try:
-                raw_output = generate_questions_for_job(job_role)
+                raw_output = generate_questions_for_job(job_role, difficulty=difficulty)
                 save_generated_questions(raw_output, job_role)
-                return redirect('view_questions', job_role=job_role)
+                start_url = reverse('start_test', kwargs={'job_role': job_role})
+                return redirect(f"{start_url}?difficulty={difficulty}")
             except Exception:
                 return render(request, 'competency/generate_test.html', {
                     'error': 'The AI service is temporarily unavailable. Please try again later.'
@@ -30,25 +35,35 @@ from django.contrib import messages
 
 @login_required
 def start_test(request, job_role):
-    # Check if questions exist for this job role
-    question = Question.objects.filter(job_role=job_role).order_by('?').first()
-    
-    if not question:
+    difficulty = request.GET.get('difficulty', 'medium').lower()
+    if difficulty not in ('easy', 'medium', 'hard'):
+        difficulty = 'medium'
+
+    base_qs = Question.objects.filter(job_role=job_role, difficulty=difficulty)
+
+    if not base_qs.exists():
         # No questions exist — generate them first
         from .utils import generate_questions_for_job, save_generated_questions
         try:
-            raw_output = generate_questions_for_job(job_role)
+            raw_output = generate_questions_for_job(job_role, difficulty=difficulty)
             save_generated_questions(raw_output, job_role)
-            question = Question.objects.filter(job_role=job_role).order_by('?').first()
+            base_qs = Question.objects.filter(job_role=job_role, difficulty=difficulty)
         except Exception:
             pass
-    
-    if not question:
-        messages.error(request, f'No questions available for "{job_role}". Please generate questions first.')
+
+    if not base_qs.exists():
+        messages.error(request, f'No questions available for "{job_role}" at {difficulty} difficulty. Please generate questions first.')
         return redirect('generate_test')
-    
-    session = CompetencyTestSession.objects.create(user=request.user, job_role=job_role)
-    return redirect('question', session_id=session.id, question_id=question.id)
+
+    session = CompetencyTestSession.objects.create(
+        user=request.user,
+        job_role=job_role,
+        difficulty=difficulty,
+    )
+
+    # Always start with the first subjective question
+    first_question = base_qs.filter(options=[]).order_by('id').first() or base_qs.order_by('id').first()
+    return redirect('question', session_id=session.id, question_id=first_question.id)
 
 @login_required
 def question_view(request, session_id, question_id):
@@ -70,25 +85,39 @@ def question_view(request, session_id, question_id):
         )
 
         # Fetch next unanswered question
-        answered_ids = Answer.objects.filter(session=session).values_list('question_id', flat=True)
-        
-        # Limit to 5 questions maximum per test session
-        if len(answered_ids) >= 5:
+        answered_ids = list(Answer.objects.filter(session=session).values_list('question_id', flat=True))
+
+        # Limit to 8 questions maximum per test session (5 subjective + 3 MCQ)
+        if len(answered_ids) >= 8:
             return redirect('test_result', session_id=session.id)
-            
-        next_question = Question.objects.filter(job_role=session.job_role).exclude(id__in=answered_ids).order_by('?').first()
+
+        remaining_qs = (
+            Question.objects
+            .filter(job_role=session.job_role, difficulty=session.difficulty)
+            .exclude(id__in=answered_ids)
+        )
+
+        # Serve all subjective questions first, then MCQs
+        next_question = (
+            remaining_qs.filter(options=[]).order_by('id').first()
+            or remaining_qs.exclude(options=[]).order_by('id').first()
+        )
 
         if next_question:
             return redirect('question', session_id=session.id, question_id=next_question.id)
         else:
-            # All questions answered - redirect to evaluation
             return redirect('test_result', session_id=session.id)
-        
-        
+
+    # Calculate question number for display (answered so far + 1)
+    answered_count = Answer.objects.filter(session=session).count()
+    question_number = answered_count + 1
+    total_questions = 8
 
     return render(request, 'competency/test_question.html', {
         'session': session,
-        'question': question
+        'question': question,
+        'question_number': question_number,
+        'total_questions': total_questions,
     })
 
 @login_required

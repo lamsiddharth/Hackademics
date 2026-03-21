@@ -26,8 +26,10 @@ class Question(models.Model):
 
 
 class CompetencyTestSession(models.Model):
+    DIFFICULTY_CHOICES = [('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     job_role = models.CharField(max_length=100)
+    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, default='medium')
     score = models.FloatField(null=True, blank=True)
     completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

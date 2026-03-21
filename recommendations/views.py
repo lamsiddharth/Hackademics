@@ -235,6 +235,17 @@ def target_job_view(request):
     for rm in recent_roadmaps:
         rm.display_title = _normalize_roadmap_title(rm.title) or rm.title
     return render(request, 'recommendations/targetjob.html', {'roadmaps': recent_roadmaps})
+
+
+@login_required
+def my_roadmaps_view(request):
+    from .models import Roadmap1
+    roadmaps = Roadmap1.objects.filter(user=request.user).order_by('-created_at')
+    for rm in roadmaps:
+        rm.display_title = _normalize_roadmap_title(rm.title) or rm.title
+        steps = rm.steps or []
+        rm.completed_count = sum(1 for s in steps if s.get('completed', False))
+    return render(request, 'recommendations/my_roadmaps.html', {'roadmaps': roadmaps})
     
 @login_required
 def job_recommendation_view(request):

@@ -18,7 +18,7 @@ def extract_skills_from_text(text):
         # Fallback to the whole text if it fails
         return [text.strip()[:50]]
 
-def generate_questions_for_job(job_title, num_questions=5):
+def generate_questions_for_job(job_title, difficulty='medium', num_questions=8):
         """Generate a mix of subjective and MCQ competency questions using AI."""
         genai.configure(api_key=settings.GEMINI_API_KEY)
 
@@ -26,8 +26,8 @@ def generate_questions_for_job(job_title, num_questions=5):
 You are an expert technical interviewer. Generate exactly {num_questions} competency questions for the job role: '{job_title}'.
 
 Requirements:
-- Include 3 subjective questions and 2 MCQs.
-- Include a difficulty level (easy, medium, or hard) for every question.
+- Include exactly 5 subjective questions and exactly 3 MCQs (8 total).
+- All questions must be at '{difficulty}' difficulty level.
 - MCQs must include 4 options and exactly one correct answer.
 
 Return ONLY a valid JSON array in this exact schema:
@@ -35,17 +35,17 @@ Return ONLY a valid JSON array in this exact schema:
     {{
         "type": "subjective",
         "question": "...",
-        "difficulty": "easy"
+        "difficulty": "{difficulty}"
     }},
     {{
         "type": "mcq",
         "question": "...",
-        "difficulty": "medium",
-        "options": ["A", "B", "C", "D"],
-        "answer": "B"
+        "difficulty": "{difficulty}",
+        "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+        "answer": "Option B text"
     }}
 ]
-No markdown. No commentary.
+No markdown. No commentary. The answer field for MCQs must be the full option text, not just a letter.
 """
 
         model = genai.GenerativeModel(settings.GEMINI_MODEL)

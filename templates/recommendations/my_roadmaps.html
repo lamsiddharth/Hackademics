@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="animate-slide-up">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-surface-50 tracking-tight">My Roadmaps</h1>
+      <p class="text-surface-400 text-sm mt-1">Browse and continue your saved learning roadmaps</p>
+    </div>
+    <a href="{% url 'target_job' %}" class="btn-primary text-sm">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Create New Roadmap
+    </a>
+  </div>
+
+  {% if roadmaps %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {% for rm in roadmaps %}
+        <div class="card-elevated p-6 group hover:border-amber-500/50 transition-all duration-300">
+          <!-- Icon + Title -->
+          <div class="flex items-start gap-4 mb-4">
+            <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-amber-500/20 transition-colors">
+              <svg class="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-semibold text-surface-50 truncate">{{ rm.display_title|default:rm.title }}</h3>
+              <p class="text-xs text-surface-500 mt-0.5">{{ rm.created_at|date:"M d, Y" }}</p>
+            </div>
+          </div>
+
+          <!-- Progress -->
+          {% if rm.steps %}
+            {% with total=rm.steps|length %}
+              <div class="mb-4">
+                <div class="flex justify-between text-xs text-surface-500 mb-1">
+                  <span>{{ rm.completed_count }} of {{ total }} steps done</span>
+                  <span>{% widthratio rm.completed_count total 100 %}%</span>
+                </div>
+                <div class="w-full bg-surface-700/50 rounded-full h-1.5">
+                  <div class="bg-gradient-to-r from-amber-500 to-amber-400 h-1.5 rounded-full transition-all"
+                       style="width: {% widthratio rm.completed_count total 100 %}%"></div>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2 mt-auto">
+            <a href="{% url 'create_roadmap_by_id' pk=rm.id %}" class="btn-primary text-xs flex-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+              Open
+            </a>
+            <form method="post" action="{% url 'delete_roadmap' pk=rm.id %}" onsubmit="return confirm('Delete this roadmap?')">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'my_roadmaps' %}">
+              <button type="submit" class="btn-danger text-xs px-3 py-2.5" title="Delete">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card p-16 text-center">
+      <svg class="w-16 h-16 text-surface-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" />
+      </svg>
+      <h3 class="text-lg font-semibold text-surface-300 mb-1">No roadmaps yet</h3>
+      <p class="text-sm text-surface-500 mb-6">Create a personalized learning roadmap for your target role</p>
+      <a href="{% url 'target_job' %}" class="btn-primary text-sm">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Create First Roadmap
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
