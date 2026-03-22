@@ -101,6 +101,7 @@ def end_interview(request):
     conversation = data.get("conversation", [])
     prep_mode    = data.get("prep_mode")
     profile      = data.get("profile", {}) or {}
+    body_lang    = data.get("body_language_metrics")
 
     try:
         session = InterviewSession.objects.get(id=session_id)
@@ -126,8 +127,15 @@ def end_interview(request):
 
     # Always save transcript first — even if feedback generation fails
     session.transcript = conversation
+    update_fields = ["transcript", "status", "prep_mode", "target_role", "target_company", "tech_stack", "current_profile"]
+    if body_lang and isinstance(body_lang, dict):
+        session.body_language_metrics = body_lang
+        update_fields.append("body_language_metrics")
     session.status     = "completed"
-    session.save()
+    session.save(update_fields=update_fields)
+
+    # Refresh to grab body metrics if the browser saved them concurrently
+    session.refresh_from_db()
 
     # Generate feedback separately so a Groq failure doesn't lose the transcript
     try:
@@ -142,10 +150,31 @@ def end_interview(request):
                 "tech_stack": session.tech_stack,
                 "current_profile": session.current_profile,
             },
+            body_language=session.body_language_metrics,
         )
         session.save(update_fields=["feedback"])
     except Exception as e:
         print(f"[mock_interview] feedback generation failed for {session.id}: {e}")
+
+    return JsonResponse({"status": "saved"})
+
+
+# ---------------------------------------------------------------------------
+# 2b. Save body language metrics — called by browser at session end
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_http_methods(["POST"])
+def save_body_language(request, session_id):
+    try:
+        session = InterviewSession.objects.get(id=session_id, user=request.user)
+    except InterviewSession.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    data = json.loads(request.body)
+    if data and isinstance(data, dict):
+        session.body_language_metrics = data
+        session.save(update_fields=["body_language_metrics"])
 
     return JsonResponse({"status": "saved"})
 
@@ -180,6 +209,7 @@ def generate_report(request, session_id):
                 "tech_stack": session.tech_stack,
                 "current_profile": session.current_profile,
             },
+            body_language=session.body_language_metrics,
         )
         session.save(update_fields=["feedback"])
         return JsonResponse({"status": "ok", "feedback": session.feedback})
@@ -222,6 +252,7 @@ def _generate_feedback(
     difficulty: str,
     prep_mode: str,
     profile: dict,
+    body_language: dict | None = None,
 ) -> str:
     client = Groq(api_key=settings.GROQ_API_KEY)
 
@@ -303,6 +334,40 @@ OVERALL SCORE: X/10
 
 Be specific, reference actual answers, and provide actionable feedback."""
 
+    # ── Append body language section if metrics are available ────────────
+    if body_language and isinstance(body_language, dict) and body_language.get("camera_enabled"):
+        eye_pct = body_language.get("eye_contact_pct", "N/A")
+        expressions = body_language.get("dominant_expressions", {})
+        head_stability = body_language.get("head_stability_pct", "N/A")
+        nod_count = body_language.get("nod_count", 0)
+        total_frames = body_language.get("total_frames", 0)
+
+        expr_str = ", ".join(f"{k}: {v}%" for k, v in expressions.items()) if expressions else "N/A"
+
+        prompt += f"""
+
+--- BODY LANGUAGE DATA (from webcam analysis) ---
+Eye contact with camera: {eye_pct}% of the time (ideal: 60-70%)
+Head stability: {head_stability}% (measures how steady the head was; >75% is good)
+Nodding detected: {nod_count} times during the interview
+Facial expression distribution: {expr_str}
+Total video frames analyzed: {total_frames}
+
+Using the above body language data, also include these sections in your report:
+
+EYE CONTACT (score: X/10)
+Evaluate based on the percentage. 60-70% is ideal for remote interviews.
+If too low, suggest looking at the camera more. If too high, note it may feel intense.
+
+FACIAL EXPRESSIONS (score: X/10)
+Comment on whether expressions were appropriate — too neutral suggests low engagement,
+appropriate smiling shows warmth, excessive brow furrowing may indicate stress.
+
+HEAD MOVEMENT & PRESENCE (score: X/10)
+Evaluate head stability (should be mostly steady) and nodding (shows active listening).
+Excessive movement suggests nervousness.
+"""
+
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
@@ -340,5 +405,6 @@ def get_results(request, session_id):
         "current_profile": session.current_profile,
         "feedback":   session.feedback or "",
         "transcript": session.transcript,
+        "body_language_metrics": session.body_language_metrics,
         "created_at": session.created_at.isoformat(),
     })

@@ -36,6 +36,9 @@ class InterviewSession(models.Model):
     # LLM-generated feedback — written by views.py after transcript arrives
     feedback    = models.TextField(null=True, blank=True)
 
+    # Client-side MediaPipe body language metrics (eye contact, expressions, head pose)
+    body_language_metrics = models.JSONField(null=True, blank=True)
+
     created_at  = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
 

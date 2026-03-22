@@ -475,6 +475,121 @@
   }
 
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Webcam preview (PiP) ── */
+  .cam-container {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .cam-preview {
+    width: 180px;
+    height: 135px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    object-fit: cover;
+    transform: scaleX(-1);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+
+  .cam-preview.hidden-cam {
+    opacity: 0;
+    transform: scaleX(-1) scale(0.8);
+    pointer-events: none;
+    height: 0;
+    overflow: hidden;
+  }
+
+  .cam-toggle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .cam-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .cam-toggle.active { border-color: var(--green); color: var(--green); }
+
+  /* ── Body language indicators ── */
+  .bl-indicators {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    transition: opacity 0.3s;
+  }
+
+  .bl-indicators.inactive { opacity: 0.3; }
+
+  .bl-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bl-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .bl-dot.good { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .bl-dot.warn { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .bl-dot.bad { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  /* ── Body language feedback section ── */
+  .bl-scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+    margin-bottom: 24px;
+  }
+
+  .bl-score-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .bl-score-icon { font-size: 20px; margin-bottom: 6px; }
+  .bl-score-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .bl-score-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .bl-score-value .pct { font-size: 13px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -554,6 +669,21 @@
           <div class="orb waiting" id="orb"></div>
         </div>
         <div class="orb-state-text" id="orb-state">connecting to pipeline...</div>
+
+        <div class="bl-indicators inactive" id="bl-indicators">
+          <div class="bl-indicator">
+            <div class="bl-dot" id="bl-eye-dot"></div>
+            <span id="bl-eye-label">eye contact</span>
+          </div>
+          <div class="bl-indicator">
+            <div class="bl-dot" id="bl-head-dot"></div>
+            <span id="bl-head-label">head pose</span>
+          </div>
+          <div class="bl-indicator">
+            <div class="bl-dot" id="bl-expr-dot"></div>
+            <span id="bl-expr-label">expression</span>
+          </div>
+        </div>
       </div>
 
       <div class="transcript-card" id="transcript-feed"></div>
@@ -577,12 +707,37 @@
   <div id="feedback-panel">
     <div class="feedback-title">Interview Complete</div>
     <div class="feedback-meta" id="feedback-meta"></div>
+
+    <div class="bl-scores" id="bl-scores" style="display:none;">
+      <div class="bl-score-card">
+        <div class="bl-score-icon">👁️</div>
+        <div class="bl-score-label">Eye Contact</div>
+        <div class="bl-score-value" id="bl-final-eye">—</div>
+      </div>
+      <div class="bl-score-card">
+        <div class="bl-score-icon">🎭</div>
+        <div class="bl-score-label">Expressions</div>
+        <div class="bl-score-value" id="bl-final-expr">—</div>
+      </div>
+      <div class="bl-score-card">
+        <div class="bl-score-icon">🧠</div>
+        <div class="bl-score-label">Head Stability</div>
+        <div class="bl-score-value" id="bl-final-head">—</div>
+      </div>
+    </div>
+
     <div class="feedback-body" id="feedback-body">Loading feedback...</div>
     <div id="feedback-actions" style="display:flex;gap:12px;margin-top:32px;flex-wrap:wrap;">
       <button class="btn-restart" onclick="location.reload()">Start New Session</button>
       <button class="btn-restart" id="btn-generate-report" style="display:none;" onclick="retryReport()">Generate Report</button>
       <button class="btn-restart" id="btn-view-history" onclick="window.location.href='/mock-interview/history/'">View History</button>
     </div>
+  </div>
+
+  <!-- ── Webcam PiP ── -->
+  <div class="cam-container" id="cam-container" style="display:none;">
+    <video id="cam-preview" class="cam-preview" autoplay playsinline muted></video>
+    <button class="cam-toggle active" id="cam-toggle" onclick="toggleCamPreview()" title="Toggle camera preview">👁</button>
   </div>
 
 </div>
@@ -624,7 +779,19 @@ class PCMProcessor extends AudioWorkletProcessor {
 registerProcessor('pcm-processor', PCMProcessor);
 </script>
 
-<script>
+<script type="module">
+// ─── MediaPipe imports ───────────────────────────────────────────────────
+import { FaceLandmarker, FilesetResolver } from
+  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs';
+
+// ─── Expose to global scope for inline onclick handlers ──────────────────
+window.startSession    = startSession;
+window.endSession      = endSession;
+window.toggleMic       = toggleMic;
+window.retryReport     = retryReport;
+window.toggleProfileFields = toggleProfileFields;
+window.toggleCamPreview = toggleCamPreview;
+
 // ─── State ───────────────────────────────────────────────────────────────
 let ws            = null;
 let sessionId     = null;
@@ -635,6 +802,22 @@ let isRecording   = false;
 let canRecord     = false;   // true only when interviewer finished speaking
 let audioQueue    = [];      // incoming PCM chunks from Kokoro
 let isPlaying     = false;
+
+// ─── MediaPipe state ─────────────────────────────────────────────────────
+let faceLandmarker   = null;
+let camStream        = null;
+let camEnabled       = false;    // true if user granted camera
+let detectionLoop    = null;     // interval ID
+let camPreviewVisible = true;
+
+// Metric accumulators
+let blFrames         = 0;        // total frames analyzed
+let eyeContactFrames = 0;        // frames with good eye contact
+let headYawSamples   = [];       // absolute yaw values per frame
+let headPitchSamples = [];
+let nodDetector      = { prev: null, direction: null, count: 0 };
+let exprCounts       = {};       // { smile: N, neutral: N, ... }
+let sessionStartTime = 0;
 
 // ─── Django CSRF ──────────────────────────────────────────────────────────
 function getCookie(name) {
@@ -731,6 +914,9 @@ async function startSession() {
 
     document.getElementById('setup-panel').style.display     = 'none';
     document.getElementById('interview-panel').style.display = 'block';
+
+    // Start MediaPipe + webcam (non-blocking — interview works even if camera fails)
+    initMediaPipe().catch(e => console.warn('[MediaPipe] init failed:', e));
 
     connectWebSocket(data.ws_url);
 
@@ -1023,8 +1209,32 @@ async function toggleMic() {
 }
 
 // ─── End session ──────────────────────────────────────────────────────────
-function endSession() {
+async function endSession() {
+  // Stop MediaPipe detection
+  stopMediaPipe();
+
+  // Send body language metrics to Django before closing
+  if (camEnabled && sessionId) {
+    const metrics = getAggregatedMetrics();
+    try {
+      await fetch(`/mock-interview/end-body-language/${sessionId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(metrics),
+      });
+    } catch (e) {
+      console.warn('[MediaPipe] failed to send metrics:', e);
+    }
+  }
+
   if (ws) ws.close();
+  // Show final body language scores in feedback panel
+  if (camEnabled) {
+    displayFinalScores();
+  }
   pollForFeedback();
 }
 
@@ -1105,6 +1315,313 @@ async function retryReport() {
   document.getElementById('btn-generate-report').style.display = 'none';
   await triggerReportGeneration();
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── MediaPipe: Face Landmarker integration ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function initMediaPipe() {
+  console.log('[MediaPipe] initializing...');
+  const video = document.getElementById('cam-preview');
+
+  // 1. Request camera
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 320, height: 240, facingMode: 'user' },
+      audio: false,
+    });
+    video.srcObject = camStream;
+    await video.play();
+  } catch (e) {
+    console.warn('[MediaPipe] Camera denied or unavailable:', e);
+    camEnabled = false;
+    return; // Graceful degradation — voice-only interview
+  }
+
+  camEnabled = true;
+  document.getElementById('cam-container').style.display = 'flex';
+  document.getElementById('bl-indicators').classList.remove('inactive');
+
+  // 2. Load Face Landmarker model
+  try {
+    const filesetResolver = await FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+    );
+    faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+        delegate: 'GPU',
+      },
+      runningMode: 'VIDEO',
+      numFaces: 1,
+      outputFaceBlendshapes: true,
+      outputFacialTransformationMatrixes: true,
+    });
+    console.log('[MediaPipe] Face Landmarker ready');
+  } catch (e) {
+    console.error('[MediaPipe] Model load failed:', e);
+    camEnabled = false;
+    return;
+  }
+
+  // 3. Start detection loop at ~10fps
+  sessionStartTime = performance.now();
+  detectionLoop = setInterval(() => runDetection(video), 100);
+}
+
+function runDetection(video) {
+  if (!faceLandmarker || video.readyState < 2) return;
+
+  const timestamp = performance.now();
+  let result;
+  try {
+    result = faceLandmarker.detectForVideo(video, timestamp);
+  } catch (e) {
+    return; // skip frame on error
+  }
+
+  if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) return;
+
+  blFrames++;
+  const landmarks = result.faceLandmarks[0];
+
+  // ── Eye contact detection ──────────────────────────────────────────
+  const isLooking = computeEyeContact(landmarks);
+  if (isLooking) eyeContactFrames++;
+
+  // ── Head pose (yaw/pitch from key landmarks) ───────────────────────
+  const headPose = computeHeadPose(landmarks);
+  headYawSamples.push(Math.abs(headPose.yaw));
+  headPitchSamples.push(Math.abs(headPose.pitch));
+
+  // ── Nod detection (pitch oscillation) ──────────────────────────────
+  detectNod(headPose.pitch);
+
+  // ── Expression extraction ──────────────────────────────────────────
+  if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
+    const expr = getDominantExpression(result.faceBlendshapes[0].categories);
+    exprCounts[expr] = (exprCounts[expr] || 0) + 1;
+  }
+
+  // ── Update real-time indicators ────────────────────────────────────
+  updateIndicators(isLooking, headPose, result.faceBlendshapes);
+}
+
+// ── Eye contact: check if iris is centered in the eye ────────────────────
+function computeEyeContact(lm) {
+  // Left eye: outer corner = 33, inner corner = 133, iris center = 468
+  // Right eye: inner corner = 362, outer corner = 263, iris center = 473
+  // If landmarks < 474, iris landmarks not available → skip
+  if (lm.length < 474) return false;
+
+  const leftOuter  = lm[33];
+  const leftInner  = lm[133];
+  const leftIris   = lm[468];
+  const rightInner = lm[362];
+  const rightOuter = lm[263];
+  const rightIris  = lm[473];
+
+  // Compute horizontal ratio: 0 = outer corner, 1 = inner corner, 0.5 = center
+  const leftEyeWidth = Math.sqrt(
+    (leftInner.x - leftOuter.x) ** 2 + (leftInner.y - leftOuter.y) ** 2
+  );
+  const leftIrisPos = Math.sqrt(
+    (leftIris.x - leftOuter.x) ** 2 + (leftIris.y - leftOuter.y) ** 2
+  );
+  const leftRatio = leftEyeWidth > 0 ? leftIrisPos / leftEyeWidth : 0.5;
+
+  const rightEyeWidth = Math.sqrt(
+    (rightOuter.x - rightInner.x) ** 2 + (rightOuter.y - rightInner.y) ** 2
+  );
+  const rightIrisPos = Math.sqrt(
+    (rightIris.x - rightInner.x) ** 2 + (rightIris.y - rightInner.y) ** 2
+  );
+  const rightRatio = rightEyeWidth > 0 ? rightIrisPos / rightEyeWidth : 0.5;
+
+  const avgRatio = (leftRatio + rightRatio) / 2;
+
+  // "Looking at camera" if iris is within 0.35-0.65 of eye width (centered)
+  return avgRatio >= 0.35 && avgRatio <= 0.65;
+}
+
+// ── Head pose from nose tip + forehead + chin landmarks ──────────────────
+function computeHeadPose(lm) {
+  // Using key landmarks: nose tip (1), chin (152), left cheek (234), right cheek (454)
+  const nose = lm[1];
+  const chin = lm[152];
+  const leftCheek = lm[234];
+  const rightCheek = lm[454];
+
+  // Yaw: asymmetry between nose and midpoint of cheeks (+ = turned right)
+  const cheekMidX = (leftCheek.x + rightCheek.x) / 2;
+  const yaw = (nose.x - cheekMidX) * 180; // rough degrees
+
+  // Pitch: nose-to-chin vertical ratio relative to face height
+  const faceHeight = Math.abs(chin.y - lm[10].y); // forehead (10) to chin
+  const noseRelative = (nose.y - lm[10].y) / (faceHeight || 1);
+  const pitch = (noseRelative - 0.55) * 180; // centered around neutral
+
+  return { yaw, pitch };
+}
+
+// ── Nod detection: pitch oscillation ─────────────────────────────────────
+function detectNod(pitch) {
+  if (nodDetector.prev === null) {
+    nodDetector.prev = pitch;
+    return;
+  }
+
+  const delta = pitch - nodDetector.prev;
+  const threshold = 3; // degrees
+
+  if (delta > threshold && nodDetector.direction !== 'down') {
+    if (nodDetector.direction === 'up') nodDetector.count++;
+    nodDetector.direction = 'down';
+  } else if (delta < -threshold && nodDetector.direction !== 'up') {
+    nodDetector.direction = 'up';
+  }
+
+  nodDetector.prev = pitch;
+}
+
+// ── Expression extraction from blendshapes ───────────────────────────────
+function getDominantExpression(categories) {
+  // Map blendshapes to high-level expression labels
+  const expressionMap = {
+    'mouthSmileLeft': 'smile', 'mouthSmileRight': 'smile',
+    'browDownLeft': 'brow_furrow', 'browDownRight': 'brow_furrow',
+    'browInnerUp': 'surprise',
+    'jawOpen': 'speaking',
+    'eyeSquintLeft': 'squint', 'eyeSquintRight': 'squint',
+    'mouthFrownLeft': 'frown', 'mouthFrownRight': 'frown',
+  };
+
+  let bestExpr = 'neutral';
+  let bestScore = 0.15; // minimum threshold to not be "neutral"
+
+  for (const cat of categories) {
+    const mapped = expressionMap[cat.categoryName];
+    if (mapped && cat.score > bestScore) {
+      bestScore = cat.score;
+      bestExpr = mapped;
+    }
+  }
+
+  return bestExpr;
+}
+
+// ── Update real-time UI indicators ───────────────────────────────────────
+function updateIndicators(isLooking, headPose, blendshapes) {
+  // Eye contact dot
+  const eyeDot = document.getElementById('bl-eye-dot');
+  eyeDot.className = 'bl-dot ' + (isLooking ? 'good' : 'warn');
+
+  // Head pose dot
+  const headDot = document.getElementById('bl-head-dot');
+  const absYaw = Math.abs(headPose.yaw);
+  const absPitch = Math.abs(headPose.pitch);
+  if (absYaw < 10 && absPitch < 10) {
+    headDot.className = 'bl-dot good';
+  } else if (absYaw < 20 && absPitch < 20) {
+    headDot.className = 'bl-dot warn';
+  } else {
+    headDot.className = 'bl-dot bad';
+  }
+
+  // Expression dot + label
+  const exprDot = document.getElementById('bl-expr-dot');
+  const exprLabel = document.getElementById('bl-expr-label');
+  if (blendshapes && blendshapes.length > 0) {
+    const expr = getDominantExpression(blendshapes[0].categories);
+    exprLabel.textContent = expr;
+    if (expr === 'smile') {
+      exprDot.className = 'bl-dot good';
+    } else if (expr === 'neutral' || expr === 'speaking') {
+      exprDot.className = 'bl-dot';
+    } else {
+      exprDot.className = 'bl-dot warn';
+    }
+  }
+}
+
+// ── Webcam preview toggle ────────────────────────────────────────────────
+function toggleCamPreview() {
+  const video = document.getElementById('cam-preview');
+  const btn = document.getElementById('cam-toggle');
+  camPreviewVisible = !camPreviewVisible;
+
+  if (camPreviewVisible) {
+    video.classList.remove('hidden-cam');
+    btn.classList.add('active');
+  } else {
+    video.classList.add('hidden-cam');
+    btn.classList.remove('active');
+  }
+}
+
+// ── Stop MediaPipe + camera ──────────────────────────────────────────────
+function stopMediaPipe() {
+  if (detectionLoop) {
+    clearInterval(detectionLoop);
+    detectionLoop = null;
+  }
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  document.getElementById('cam-container').style.display = 'none';
+}
+
+// ── Aggregate metrics for Django ─────────────────────────────────────────
+function getAggregatedMetrics() {
+  const eyePct = blFrames > 0 ? Math.round((eyeContactFrames / blFrames) * 100 * 10) / 10 : 0;
+
+  // Head stability: % of frames where yaw < 15° and pitch < 15°
+  let stableFrames = 0;
+  for (let i = 0; i < headYawSamples.length; i++) {
+    if (headYawSamples[i] < 15 && headPitchSamples[i] < 15) stableFrames++;
+  }
+  const headStabilityPct = blFrames > 0 ? Math.round((stableFrames / blFrames) * 100 * 10) / 10 : 0;
+
+  // Dominant expressions as percentages
+  const exprTotal = Object.values(exprCounts).reduce((a, b) => a + b, 0) || 1;
+  const dominantExpressions = {};
+  for (const [k, v] of Object.entries(exprCounts)) {
+    dominantExpressions[k] = Math.round((v / exprTotal) * 100);
+  }
+
+  return {
+    camera_enabled: true,
+    eye_contact_pct: eyePct,
+    head_stability_pct: headStabilityPct,
+    nod_count: nodDetector.count,
+    dominant_expressions: dominantExpressions,
+    total_frames: blFrames,
+  };
+}
+
+// ── Display final scores in feedback panel ────────────────────────────────
+function displayFinalScores() {
+  const metrics = getAggregatedMetrics();
+
+  document.getElementById('bl-scores').style.display = 'grid';
+  document.getElementById('bl-final-eye').innerHTML =
+    `${metrics.eye_contact_pct}<span class="pct">%</span>`;
+  document.getElementById('bl-final-head').innerHTML =
+    `${metrics.head_stability_pct}<span class="pct">%</span>`;
+
+  // Find most common expression (excluding neutral and speaking)
+  const meaningful = Object.entries(metrics.dominant_expressions)
+    .filter(([k]) => k !== 'neutral' && k !== 'speaking')
+    .sort((a, b) => b[1] - a[1]);
+  const topExpr = meaningful.length > 0 ? meaningful[0][0] : 'neutral';
+  const exprEmojis = { smile: '😊', brow_furrow: '😟', surprise: '😮', squint: '😑', frown: '😔', neutral: '😐' };
+  document.getElementById('bl-final-expr').innerHTML =
+    `${exprEmojis[topExpr] || '😐'} <span class="pct">${topExpr}</span>`;
+}
+
+// ─── DOMContentLoaded setup ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', toggleProfileFields);
 </script>
 </body>
 </html>
