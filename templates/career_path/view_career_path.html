@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dagre-d3@0.6.4/dist/dagre-d3.min.js"></script>
+<style>
+    .node rect {
+        fill: #3B82F6; /* brand-500 equivalent */
+        stroke: #2563EB; /* darker border */
+        stroke-width: 2px;
+        rx: 12px;
+        ry: 12px;
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    }
+    .node:hover rect {
+        fill: #60A5FA; /* hover state */
+        stroke: #3B82F6;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .edgePath path {
+        stroke: #A78BFA; /* blue-ish gray for paths */
+        stroke-width: 2px;
+        fill: none;
+        opacity: 0.7;
+    }
+    .edgePath marker {
+        fill: #A78BFA;
+    }
+    .node text {
+        font-family: 'Inter', sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        fill: #FFFFFF; /* prominent white text */
+    }
+    .edgeLabel text {
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        fill: #E0E7FF; /* light blue text for edges */
+    }
+    .edgeLabel rect {
+        fill: rgba(17, 24, 39, 0.85); /* semi-transparent dark background for labels */
+        rx: 4px;
+        ry: 4px;
+    }
+    
+    /* Override base container styles for full screen */
+    main.max-w-7xl {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden; /* Prevent scrolling outside the graph */
+    }
+    
+    #career-graph-container {
+        flex-grow: 1; /* Take up all remaining space */
+        width: 100vw;
+        height: calc(100vh - 64px); /* Subtract navbar height */
+        padding: 0;
+        margin: 0;
+        border-radius: 0;
+    }
+</style>
+<div id="career-graph-container" class="bg-gray-800 shadow-lg">
+    <svg id="career-graph" class="w-full h-full" style="background: radial-gradient(circle at center, #1E293B 0%, #0B0F1A 100%);"></svg>
+</div>
+
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        var careerPathData = {{ career_path.path|safe }};
+
+        // Create a new directed graph
+        var g = new dagreD3.graphlib.Graph().setGraph({
+            nodesep: 80,
+            ranksep: 200,    // Expand vertically
+            marginx: 20,
+            marginy: 20
+        });
+
+        // Add nodes to the graph
+        careerPathData.nodes.forEach(function(node) {
+            g.setNode(node.id, { 
+                label: node.label, 
+                class: "node-class",
+                paddingX: 30, // Expand width of the node box
+                paddingY: 20, // Expand height of the node box
+                rx: 8,        // Rounded corners
+                ry: 8
+            });
+        });
+
+        // Add edges to the graph
+        careerPathData.edges.forEach(function(edge) {
+            g.setEdge(edge.from, edge.to, { label: edge.label, class: "edge-class" });
+        });
+
+        // Create the renderer
+        var render = new dagreD3.render();
+
+        // Set up an SVG group so that we can translate the final graph.
+        var svg = d3.select("#career-graph");
+        var svgGroup = svg.append("g");
+
+        // Run the renderer. This is what draws the final graph.
+        render(svgGroup, g);
+
+        // Set up zoom support
+        var zoom = d3.zoom().on("zoom", function(event) {
+            svgGroup.attr('transform', event.transform);
+        });
+        svg.call(zoom);
+
+        // Center the graph
+        var initialScale = 0.75;
+        var xCenterOffset = (svg.node().getBoundingClientRect().width - g.graph().width * initialScale) / 2;
+        svg.call(zoom.transform, d3.zoomIdentity.translate(xCenterOffset, 20).scale(initialScale));
+        svg.attr('height', g.graph().height * initialScale + 40);
+    });
+</script>
+{% endblock %}

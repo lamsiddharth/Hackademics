@@ -24,6 +24,7 @@ urlpatterns = [
     path('competency/', include('competency.urls')),
     path('recommendations/', include('recommendations.urls')),
     path("mock-interview/", include("mock_interview.urls")),
+    path('career-path/', include('career_path.urls')),
 ]
 # Custom error handlers
 handler404 = 'config.views.custom_404'

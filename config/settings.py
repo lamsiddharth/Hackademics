@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     'resume_builder',
     'competency',
     'recommendations',
-    'mock_interview'
+    'mock_interview',
+    'career_path'
 ]
 
 MIDDLEWARE = [
